@@ -9,7 +9,7 @@ type Tab = 'sounds' | 'mixer' | 'presets';
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('sounds');
-  const [activeCategory, setActiveCategory] = useState<string>('tavern');
+  const [selectedCategory, setSelectedCategory] = useState<string>('tavern');
   // Loop sounds: Map<soundId, volume>
   const [loopSounds, setLoopSounds] = useState<Map<string, number>>(new Map());
   // One-shot volumes: Map<soundId, volume>
@@ -21,9 +21,6 @@ function App() {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animFrameRef = useRef<number>(0);
-  
-  // Refs for category sections (anchors)
-  const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
 
   const initAudio = useCallback(() => {
     if (!isInitialized) {
@@ -31,14 +28,6 @@ function App() {
       setIsInitialized(true);
     }
   }, [isInitialized]);
-
-  const scrollToCategory = useCallback((catId: string) => {
-    setActiveCategory(catId);
-    const el = sectionRefs.current[catId];
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  }, []);
 
   const toggleLoopSound = useCallback((soundId: string) => {
     initAudio();
@@ -126,27 +115,6 @@ function App() {
     audioEngine.setMasterVolume(vol);
   }, []);
 
-  // Track active category based on scroll position
-  useEffect(() => {
-    if (activeTab !== 'sounds') return;
-    
-    const handleScroll = () => {
-      const scrollTop = window.scrollY + 200;
-      let current = categories[0].id;
-      
-      for (const cat of categories) {
-        const el = sectionRefs.current[cat.id];
-        if (el && el.offsetTop <= scrollTop) {
-          current = cat.id;
-        }
-      }
-      setActiveCategory(current);
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [activeTab]);
-
   // Visualizer
   useEffect(() => {
     if (!isInitialized) return;
@@ -188,11 +156,15 @@ function App() {
   };
 
   const activeCount = loopSounds.size + playingOneshots.size;
+  const categorySounds = soundLibrary.filter(s => s.category === selectedCategory);
+  const musicSounds = categorySounds.filter(s => s.subCategory === 'music');
+  const ambientSounds = categorySounds.filter(s => s.subCategory === 'ambient');
+  const effectSounds = categorySounds.filter(s => s.subCategory === 'effect');
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 text-white flex flex-col">
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-purple-800/30 bg-black/60 backdrop-blur-md">
+      <header className="border-b border-purple-800/30 bg-black/30 backdrop-blur-sm flex-shrink-0">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="text-3xl">🎭</div>
@@ -261,16 +233,16 @@ function App() {
           </div>
         </nav>
 
-        {/* Category Anchors (only on sounds tab) */}
+        {/* Category Buttons (only on sounds tab) */}
         {activeTab === 'sounds' && (
           <div className="border-t border-purple-800/10 bg-black/20">
-            <div className="max-w-7xl mx-auto px-4 py-2 flex gap-1.5 overflow-x-auto scrollbar-hide">
+            <div className="max-w-7xl mx-auto px-4 py-2 flex gap-2 overflow-x-auto scrollbar-hide">
               {categories.map(cat => (
                 <button
                   key={cat.id}
-                  onClick={() => scrollToCategory(cat.id)}
+                  onClick={() => setSelectedCategory(cat.id)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 ${
-                    activeCategory === cat.id
+                    selectedCategory === cat.id
                       ? `bg-gradient-to-r ${cat.color} text-white shadow-lg`
                       : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700/50 hover:text-slate-200 border border-slate-700/30'
                   }`}
@@ -294,115 +266,87 @@ function App() {
       {/* Main Content */}
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-6">
         {activeTab === 'sounds' && (
-          <div className="space-y-12">
-            {categories.map(cat => {
-              const catSounds = soundLibrary.filter(s => s.category === cat.id);
-              const musicSounds = catSounds.filter(s => s.subCategory === 'music');
-              const ambientSounds = catSounds.filter(s => s.subCategory === 'ambient');
-              const effectSounds = catSounds.filter(s => s.subCategory === 'effect');
+          <div className="space-y-6">
+            {/* Music Section */}
+            {musicSounds.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-1 h-4 bg-fuchsia-500 rounded-full"></div>
+                  <h3 className="text-xs font-semibold text-fuchsia-300 uppercase tracking-wider">
+                    🎵 Фоновая музыка
+                  </h3>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                  {musicSounds.map(sound => (
+                    <SoundCard
+                      key={sound.id}
+                      sound={sound}
+                      isActive={loopSounds.has(sound.id)}
+                      volume={getVolumeForSound(sound)}
+                      isPlaying={false}
+                      onToggle={toggleLoopSound}
+                      onPlayOneShot={() => {}}
+                      onVolumeChange={setLoopVolume}
+                      variant="music"
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
 
-              return (
-                <section
-                  key={cat.id}
-                  ref={(el) => { sectionRefs.current[cat.id] = el; }}
-                  className="scroll-mt-56 pt-4"
-                >
-                  {/* Category Header */}
-                  <div className={`flex items-center gap-3 mb-6 pb-3 border-b border-purple-800/20`}>
-                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${cat.color} flex items-center justify-center text-2xl shadow-lg`}>
-                      {cat.icon}
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-bold text-white">{cat.name}</h2>
-                      <p className="text-xs text-purple-400/60">
-                        {musicSounds.length} муз. • {ambientSounds.length} эмб. • {effectSounds.length} эффект.
-                      </p>
-                    </div>
-                  </div>
+            {/* Ambient Section */}
+            {ambientSounds.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-1 h-4 bg-purple-500 rounded-full"></div>
+                  <h3 className="text-xs font-semibold text-purple-300 uppercase tracking-wider">
+                    🎧 Эмбиент
+                  </h3>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                  {ambientSounds.map(sound => (
+                    <SoundCard
+                      key={sound.id}
+                      sound={sound}
+                      isActive={loopSounds.has(sound.id)}
+                      volume={getVolumeForSound(sound)}
+                      isPlaying={false}
+                      onToggle={toggleLoopSound}
+                      onPlayOneShot={() => {}}
+                      onVolumeChange={setLoopVolume}
+                      variant="ambient"
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
 
-                  {/* Music Section */}
-                  {musicSounds.length > 0 && (
-                    <div className="mb-6">
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="w-1 h-4 bg-fuchsia-500 rounded-full"></div>
-                        <h3 className="text-xs font-semibold text-fuchsia-300 uppercase tracking-wider">
-                          🎵 Фоновая музыка
-                        </h3>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                        {musicSounds.map(sound => (
-                          <SoundCard
-                            key={sound.id}
-                            sound={sound}
-                            isActive={loopSounds.has(sound.id)}
-                            volume={getVolumeForSound(sound)}
-                            isPlaying={false}
-                            onToggle={toggleLoopSound}
-                            onPlayOneShot={() => {}}
-                            onVolumeChange={setLoopVolume}
-                            variant="music"
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Ambient Section */}
-                  {ambientSounds.length > 0 && (
-                    <div className="mb-6">
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="w-1 h-4 bg-purple-500 rounded-full"></div>
-                        <h3 className="text-xs font-semibold text-purple-300 uppercase tracking-wider">
-                          🎧 Эмбиент
-                        </h3>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                        {ambientSounds.map(sound => (
-                          <SoundCard
-                            key={sound.id}
-                            sound={sound}
-                            isActive={loopSounds.has(sound.id)}
-                            volume={getVolumeForSound(sound)}
-                            isPlaying={false}
-                            onToggle={toggleLoopSound}
-                            onPlayOneShot={() => {}}
-                            onVolumeChange={setLoopVolume}
-                            variant="ambient"
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Effects Section */}
-                  {effectSounds.length > 0 && (
-                    <div>
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="w-1 h-4 bg-amber-500 rounded-full"></div>
-                        <h3 className="text-xs font-semibold text-amber-300 uppercase tracking-wider">
-                          ⚡ Одноразовые эффекты
-                        </h3>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                        {effectSounds.map(sound => (
-                          <SoundCard
-                            key={sound.id}
-                            sound={sound}
-                            isActive={false}
-                            volume={getVolumeForSound(sound)}
-                            isPlaying={playingOneshots.has(sound.id)}
-                            onToggle={() => {}}
-                            onPlayOneShot={playOneshot}
-                            onVolumeChange={setOneshotVolume}
-                            variant="effect"
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </section>
-              );
-            })}
+            {/* Effects Section */}
+            {effectSounds.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-1 h-4 bg-amber-500 rounded-full"></div>
+                  <h3 className="text-xs font-semibold text-amber-300 uppercase tracking-wider">
+                    ⚡ Одноразовые эффекты
+                  </h3>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                  {effectSounds.map(sound => (
+                    <SoundCard
+                      key={sound.id}
+                      sound={sound}
+                      isActive={false}
+                      volume={getVolumeForSound(sound)}
+                      isPlaying={playingOneshots.has(sound.id)}
+                      onToggle={() => {}}
+                      onPlayOneShot={playOneshot}
+                      onVolumeChange={setOneshotVolume}
+                      variant="effect"
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
