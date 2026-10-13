@@ -16,8 +16,15 @@ export function MixerPanel({ activeSounds, onVolumeChange, onStop, onStopAll }: 
         <div className="text-6xl mb-4 opacity-50">🎛️</div>
         <h2 className="text-xl font-semibold text-purple-200 mb-2">Микшер пуст</h2>
         <p className="text-purple-400/60 max-w-md">
-          Перейдите во вкладку «Звуки» и активируйте нужные звуки, чтобы создать уникальную атмосферу для вашей сессии.
+          Перейдите во вкладку «Звуки» и активируйте фоновые звуки, чтобы создать уникальную атмосферу для вашей сессии.
         </p>
+        <div className="mt-6 p-4 rounded-xl bg-slate-800/30 border border-slate-700/30 max-w-md text-left">
+          <p className="text-sm text-purple-300/80 mb-2">💡 <strong>Совет:</strong></p>
+          <ul className="text-xs text-purple-400/60 space-y-1">
+            <li>• <span className="text-purple-300">∞ Фоновые звуки</span> — зацикленные, настраиваются в микшере</li>
+            <li>• <span className="text-amber-300">⚡ Эффекты</span> — одноразовые, для ключевых моментов</li>
+          </ul>
+        </div>
       </div>
     );
   }
@@ -26,14 +33,14 @@ export function MixerPanel({ activeSounds, onVolumeChange, onStop, onStopAll }: 
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-lg font-semibold text-purple-200">Микшер</h2>
-          <p className="text-sm text-purple-400/60">Управляйте громкостью каждого звука</p>
+          <h2 className="text-lg font-semibold text-purple-200">Микшер фоновых звуков</h2>
+          <p className="text-sm text-purple-400/60">Управляйте громкостью каждого активного эмбиента</p>
         </div>
         <button
           onClick={onStopAll}
-          className="px-4 py-2 bg-red-900/30 border border-red-700/50 rounded-lg text-red-300 text-sm hover:bg-red-900/50 transition-all"
+          className="px-4 py-2 bg-red-900/30 border border-red-700/50 rounded-lg text-red-300 text-sm hover:bg-red-900/50 transition-all flex items-center gap-2"
         >
-          🛑 Остановить всё
+          <span>🛑</span> Остановить всё
         </button>
       </div>
 
@@ -110,6 +117,14 @@ export function MixerPanel({ activeSounds, onVolumeChange, onStop, onStopAll }: 
             {getMoodText(activeEntries.length)}
           </div>
         </div>
+      </div>
+
+      {/* Info about one-shots */}
+      <div className="mt-4 p-3 rounded-lg bg-amber-900/10 border border-amber-800/20">
+        <p className="text-xs text-amber-300/70 flex items-center gap-2">
+          <span>⚡</span>
+          <span>Одноразовые эффекты воспроизводятся со вкладки «Звуки» и не отображаются в микшере</span>
+        </p>
       </div>
     </div>
   );

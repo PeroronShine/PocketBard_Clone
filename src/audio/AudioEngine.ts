@@ -1,6 +1,7 @@
 // Audio Engine using Web Audio API for procedural sound generation
 
 export type SoundType = 'noise' | 'tone' | 'rhythm' | 'ambient';
+export type SoundMode = 'loop' | 'oneshot';
 
 export interface SoundConfig {
   id: string;
@@ -8,6 +9,7 @@ export interface SoundConfig {
   icon: string;
   category: string;
   type: SoundType;
+  mode: SoundMode;
   description: string;
   params: SoundParams;
 }
@@ -24,11 +26,26 @@ export interface SoundParams {
   gainBase?: number;
   detune?: number;
   reverbMix?: number;
+  // One-shot specific
+  attackTime?: number;
+  decayTime?: number;
+  sustainLevel?: number;
+  releaseTime?: number;
+  duration?: number;
+  pitchEnvelope?: { from: number; to: number; time: number };
+  filterEnvelope?: { from: number; to: number; time: number };
+}
+
+interface ActiveSound {
+  nodes: AudioNode[];
+  gain: GainNode;
+  source?: OscillatorNode | AudioBufferSourceNode;
+  timeoutId?: number;
 }
 
 class AudioEngine {
   private ctx: AudioContext | null = null;
-  private activeSounds: Map<string, { nodes: AudioNode[]; gain: GainNode; source?: OscillatorNode | AudioBufferSourceNode }> = new Map();
+  private activeSounds: Map<string, ActiveSound> = new Map();
   private masterGain: GainNode | null = null;
   private convolver: ConvolverNode | null = null;
   private reverbGain: GainNode | null = null;
@@ -77,10 +94,10 @@ class AudioEngine {
     }
   }
 
-  private createNoiseBuffer(type: 'white' | 'pink' | 'brown'): AudioBuffer {
+  private createNoiseBuffer(type: 'white' | 'pink' | 'brown', durationSec: number = 4): AudioBuffer {
     if (!this.ctx) throw new Error('Audio context not initialized');
     const sampleRate = this.ctx.sampleRate;
-    const length = sampleRate * 4;
+    const length = sampleRate * durationSec;
     const buffer = this.ctx.createBuffer(1, length, sampleRate);
     const data = buffer.getChannelData(0);
 
@@ -113,23 +130,23 @@ class AudioEngine {
     return buffer;
   }
 
+  // =====================
+  // LOOP SOUNDS (ambient)
+  // =====================
   playSound(soundId: string, config: SoundConfig, volume: number) {
     this.init();
     if (!this.ctx || !this.masterGain) return;
     
-    // Stop existing sound if playing
     this.stopSound(soundId);
 
     const gainNode = this.ctx.createGain();
     gainNode.gain.value = 0;
     gainNode.connect(this.masterGain);
     
-    // Fade in
     gainNode.gain.setTargetAtTime(volume, this.ctx.currentTime, 0.5);
 
     const nodes: AudioNode[] = [gainNode];
     let source: OscillatorNode | AudioBufferSourceNode | undefined;
-
     const params = config.params;
 
     switch (config.type) {
@@ -222,7 +239,11 @@ class AudioEngine {
             }
           });
           
-          setTimeout(scheduleLoop, pattern.length * beatDuration * 1000 - 50);
+          const timeoutId = window.setTimeout(scheduleLoop, pattern.length * beatDuration * 1000 - 50);
+          const existing = this.activeSounds.get(soundId);
+          if (existing) {
+            existing.timeoutId = timeoutId;
+          }
         };
         
         scheduleLoop();
@@ -230,7 +251,6 @@ class AudioEngine {
       }
       
       case 'ambient': {
-        // Complex ambient with multiple layers
         const freqs = params.frequencies || [220, 330, 440];
         
         freqs.forEach((freq) => {
@@ -272,6 +292,164 @@ class AudioEngine {
     this.activeSounds.set(soundId, { nodes, gain: gainNode, source });
   }
 
+  // =====================
+  // ONE-SHOT SOUNDS
+  // =====================
+  playOneShot(soundId: string, config: SoundConfig, volume: number) {
+    this.init();
+    if (!this.ctx || !this.masterGain) return;
+
+    const params = config.params;
+    const now = this.ctx.currentTime;
+    const duration = params.duration || 2;
+    const attack = params.attackTime || 0.01;
+    const decay = params.decayTime || 0.3;
+    const sustain = params.sustainLevel || 0.3;
+    const release = params.releaseTime || 0.5;
+
+    const gainNode = this.ctx.createGain();
+    gainNode.connect(this.masterGain);
+
+    // ADSR envelope
+    gainNode.gain.setValueAtTime(0, now);
+    gainNode.gain.linearRampToValueAtTime(volume, now + attack);
+    gainNode.gain.linearRampToValueAtTime(volume * sustain, now + attack + decay);
+    gainNode.gain.setValueAtTime(volume * sustain, now + duration - release);
+    gainNode.gain.linearRampToValueAtTime(0, now + duration);
+
+    const nodes: AudioNode[] = [gainNode];
+
+    switch (config.type) {
+      case 'noise': {
+        const buffer = this.createNoiseBuffer(params.noiseType || 'white', duration + 1);
+        const src = this.ctx.createBufferSource();
+        src.buffer = buffer;
+        src.loop = false;
+
+        if (params.filterFreq) {
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = params.filterQ && params.filterQ > 3 ? 'bandpass' : 'lowpass';
+          
+          if (params.filterEnvelope) {
+            filter.frequency.setValueAtTime(params.filterEnvelope.from, now);
+            filter.frequency.linearRampToValueAtTime(params.filterEnvelope.to, now + params.filterEnvelope.time);
+          } else {
+            filter.frequency.value = params.filterFreq;
+          }
+          filter.Q.value = params.filterQ || 1;
+          
+          src.connect(filter);
+          filter.connect(gainNode);
+          nodes.push(filter);
+        } else {
+          src.connect(gainNode);
+        }
+
+        src.start(now);
+        src.stop(now + duration);
+        break;
+      }
+
+      case 'tone': {
+        const freqs = params.frequencies || [440];
+        
+        freqs.forEach((freq) => {
+          const osc = this.ctx!.createOscillator();
+          osc.type = 'sine';
+          
+          if (params.pitchEnvelope) {
+            osc.frequency.setValueAtTime(params.pitchEnvelope.from, now);
+            osc.frequency.linearRampToValueAtTime(params.pitchEnvelope.to, now + params.pitchEnvelope.time);
+          } else {
+            osc.frequency.value = freq;
+          }
+          
+          if (params.detune) {
+            osc.detune.value = (Math.random() - 0.5) * params.detune;
+          }
+
+          const oscGain = this.ctx!.createGain();
+          oscGain.gain.value = 1 / freqs.length;
+          
+          osc.connect(oscGain);
+          oscGain.connect(gainNode);
+          osc.start(now);
+          osc.stop(now + duration);
+          nodes.push(osc, oscGain);
+        });
+        break;
+      }
+
+      case 'rhythm': {
+        const pattern = params.rhythmPattern || [1, 0, 0.5, 0];
+        const bpm = params.rhythmBpm || 80;
+        const beatDuration = 60 / bpm;
+
+        pattern.forEach((velocity, i) => {
+          if (velocity > 0) {
+            const time = now + i * beatDuration;
+            const osc = this.ctx!.createOscillator();
+            osc.type = 'triangle';
+            osc.frequency.value = params.frequencies?.[0] || 80;
+
+            const env = this.ctx!.createGain();
+            env.gain.setValueAtTime(0, time);
+            env.gain.linearRampToValueAtTime(velocity * 0.5, time + 0.005);
+            env.gain.exponentialRampToValueAtTime(0.001, time + beatDuration * 0.6);
+
+            osc.connect(env);
+            env.connect(gainNode);
+            osc.start(time);
+            osc.stop(time + beatDuration);
+            nodes.push(osc, env);
+          }
+        });
+        break;
+      }
+
+      case 'ambient': {
+        // For one-shot ambient, create a short evolving pad
+        const freqs = params.frequencies || [220, 330];
+        
+        freqs.forEach((freq) => {
+          const osc = this.ctx!.createOscillator();
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+          
+          if (params.lfoRate) {
+            const lfo = this.ctx!.createOscillator();
+            lfo.frequency.value = params.lfoRate;
+            const lfoGain = this.ctx!.createGain();
+            lfoGain.gain.value = params.lfoDepth || 5;
+            lfo.connect(lfoGain);
+            lfoGain.connect(osc.frequency);
+            lfo.start(now);
+            lfo.stop(now + duration);
+            nodes.push(lfo, lfoGain);
+          }
+          
+          const oscGain = this.ctx!.createGain();
+          oscGain.gain.value = 0.3 / freqs.length;
+          
+          osc.connect(oscGain);
+          oscGain.connect(gainNode);
+          osc.start(now);
+          osc.stop(now + duration);
+          nodes.push(osc, oscGain);
+        });
+        break;
+      }
+    }
+
+    // Track for cleanup
+    const timeoutId = window.setTimeout(() => {
+      nodes.forEach(n => { try { n.disconnect(); } catch(e) {} });
+      this.activeSounds.delete(soundId);
+    }, duration * 1000 + 100);
+
+    this.activeSounds.set(soundId, { nodes, gain: gainNode, timeoutId });
+  }
+
   setSoundVolume(soundId: string, volume: number) {
     const sound = this.activeSounds.get(soundId);
     if (sound && this.ctx) {
@@ -282,7 +460,10 @@ class AudioEngine {
   stopSound(soundId: string) {
     const sound = this.activeSounds.get(soundId);
     if (sound && this.ctx) {
-      // Fade out
+      if (sound.timeoutId) {
+        clearTimeout(sound.timeoutId);
+      }
+      
       sound.gain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.3);
       
       setTimeout(() => {
@@ -306,6 +487,10 @@ class AudioEngine {
 
   isPlaying(soundId: string): boolean {
     return this.activeSounds.has(soundId);
+  }
+
+  getActiveSoundIds(): string[] {
+    return Array.from(this.activeSounds.keys());
   }
 
   getAnalyserNode(): AnalyserNode | null {

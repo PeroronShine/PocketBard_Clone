@@ -1,17 +1,21 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { audioEngine } from './audio/AudioEngine';
+import { audioEngine, SoundConfig } from './audio/AudioEngine';
 import { soundLibrary, categories, presets, Preset } from './data/sounds';
 import { SoundCard } from './components/SoundCard';
 import { MixerPanel } from './components/MixerPanel';
 import { PresetPanel } from './components/PresetPanel';
-import { Visualizer } from './components/Visualizer';
 
 type Tab = 'sounds' | 'mixer' | 'presets';
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('sounds');
   const [selectedCategory, setSelectedCategory] = useState<string>('tavern');
-  const [activeSounds, setActiveSounds] = useState<Map<string, number>>(new Map());
+  // Loop sounds: Map<soundId, volume>
+  const [loopSounds, setLoopSounds] = useState<Map<string, number>>(new Map());
+  // One-shot volumes (persisted between plays): Map<soundId, volume>
+  const [oneshotVolumes, setOneshotVolumes] = useState<Map<string, number>>(new Map());
+  // Currently playing one-shots: Set<soundId>
+  const [playingOneshots, setPlayingOneshots] = useState<Set<string>>(new Set());
   const [masterVolume, setMasterVolume] = useState(0.7);
   const [isInitialized, setIsInitialized] = useState(false);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -25,10 +29,10 @@ function App() {
     }
   }, [isInitialized]);
 
-  const toggleSound = useCallback((soundId: string) => {
+  const toggleLoopSound = useCallback((soundId: string) => {
     initAudio();
     
-    setActiveSounds(prev => {
+    setLoopSounds(prev => {
       const next = new Map(prev);
       if (next.has(soundId)) {
         audioEngine.stopSound(soundId);
@@ -36,17 +40,51 @@ function App() {
       } else {
         const sound = soundLibrary.find(s => s.id === soundId);
         if (sound) {
-          audioEngine.playSound(soundId, sound, 0.5);
-          next.set(soundId, 0.5);
+          const vol = 0.5;
+          audioEngine.playSound(soundId, sound, vol);
+          next.set(soundId, vol);
         }
       }
       return next;
     });
   }, [initAudio]);
 
-  const setSoundVolume = useCallback((soundId: string, volume: number) => {
+  const playOneshot = useCallback((soundId: string) => {
+    initAudio();
+    const sound = soundLibrary.find(s => s.id === soundId);
+    if (!sound) return;
+
+    const vol = oneshotVolumes.get(soundId) || 0.7;
+    audioEngine.playOneShot(soundId, sound, vol);
+    
+    setPlayingOneshots(prev => {
+      const next = new Set(prev);
+      next.add(soundId);
+      return next;
+    });
+
+    // Auto-remove after duration
+    const duration = (sound.params.duration || 2) * 1000 + 200;
+    setTimeout(() => {
+      setPlayingOneshots(prev => {
+        const next = new Set(prev);
+        next.delete(soundId);
+        return next;
+      });
+    }, duration);
+  }, [initAudio, oneshotVolumes]);
+
+  const setLoopVolume = useCallback((soundId: string, volume: number) => {
     audioEngine.setSoundVolume(soundId, volume);
-    setActiveSounds(prev => {
+    setLoopSounds(prev => {
+      const next = new Map(prev);
+      next.set(soundId, volume);
+      return next;
+    });
+  }, []);
+
+  const setOneshotVolume = useCallback((soundId: string, volume: number) => {
+    setOneshotVolumes(prev => {
       const next = new Map(prev);
       next.set(soundId, volume);
       return next;
@@ -56,23 +94,25 @@ function App() {
   const loadPreset = useCallback((preset: Preset) => {
     initAudio();
     audioEngine.stopAll();
-    const newActive = new Map<string, number>();
+    const newLoop = new Map<string, number>();
     
     preset.sounds.forEach(({ id, volume }) => {
       const sound = soundLibrary.find(s => s.id === id);
-      if (sound) {
+      if (sound && sound.mode === 'loop') {
         audioEngine.playSound(id, sound, volume);
-        newActive.set(id, volume);
+        newLoop.set(id, volume);
       }
     });
     
-    setActiveSounds(newActive);
+    setLoopSounds(newLoop);
+    setPlayingOneshots(new Set());
     setActiveTab('mixer');
   }, [initAudio]);
 
   const stopAll = useCallback(() => {
     audioEngine.stopAll();
-    setActiveSounds(new Map());
+    setLoopSounds(new Map());
+    setPlayingOneshots(new Set());
   }, []);
 
   const handleMasterVolume = useCallback((vol: number) => {
@@ -129,8 +169,18 @@ function App() {
     };
   }, [isInitialized]);
 
-  const filteredSounds = soundLibrary.filter(s => s.category === selectedCategory);
-  const activeCount = activeSounds.size;
+  const categorySounds = soundLibrary.filter(s => s.category === selectedCategory);
+  const ambientSounds = categorySounds.filter(s => s.mode === 'loop');
+  const oneshotSounds = categorySounds.filter(s => s.mode === 'oneshot');
+  const activeCount = loopSounds.size + playingOneshots.size;
+
+  const getVolumeForSound = (sound: SoundConfig): number => {
+    if (sound.mode === 'loop') {
+      return loopSounds.get(sound.id) || 0;
+    } else {
+      return oneshotVolumes.get(sound.id) || 0.7;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 text-white flex flex-col">
@@ -151,7 +201,10 @@ function App() {
             {activeCount > 0 && (
               <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-900/50 rounded-full border border-purple-600/30">
                 <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
-                <span className="text-sm text-purple-200">{activeCount} звук{activeCount === 1 ? '' : activeCount < 5 ? 'а' : 'ов'}</span>
+                <span className="text-sm text-purple-200">
+                  {loopSounds.size} фон{loopSounds.size === 1 ? '' : loopSounds.size < 5 ? 'а' : 'ов'}
+                  {playingOneshots.size > 0 && ` • ${playingOneshots.size} эффект${playingOneshots.size === 1 ? '' : playingOneshots.size < 5 ? 'а' : 'ов'}`}
+                </span>
                 <button 
                   onClick={stopAll}
                   className="ml-1 text-red-400 hover:text-red-300 transition-colors"
@@ -196,7 +249,7 @@ function App() {
         <div className="max-w-7xl mx-auto px-4 flex gap-1">
           {[
             { id: 'sounds' as Tab, label: 'Звуки', icon: '🎵' },
-            { id: 'mixer' as Tab, label: `Микшер${activeCount > 0 ? ` (${activeCount})` : ''}`, icon: '🎛️' },
+            { id: 'mixer' as Tab, label: `Микшер${loopSounds.size > 0 ? ` (${loopSounds.size})` : ''}`, icon: '🎛️' },
             { id: 'presets' as Tab, label: 'Пресеты', icon: '📋' },
           ].map(tab => (
             <button
@@ -237,27 +290,63 @@ function App() {
               ))}
             </div>
 
-            {/* Sound Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {filteredSounds.map(sound => (
-                <SoundCard
-                  key={sound.id}
-                  sound={sound}
-                  isActive={activeSounds.has(sound.id)}
-                  volume={activeSounds.get(sound.id) || 0}
-                  onToggle={toggleSound}
-                  onVolumeChange={setSoundVolume}
-                />
-              ))}
+            {/* Ambient Sounds Section */}
+            <div className="mb-8">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-1 h-5 bg-purple-500 rounded-full"></div>
+                <h2 className="text-sm font-semibold text-purple-200 uppercase tracking-wider">
+                  🎧 Фоновые звуки
+                </h2>
+                <span className="text-xs text-purple-400/50">— зацикленные, для атмосферы</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {ambientSounds.map(sound => (
+                  <SoundCard
+                    key={sound.id}
+                    sound={sound}
+                    isActive={loopSounds.has(sound.id)}
+                    volume={getVolumeForSound(sound)}
+                    isPlaying={false}
+                    onToggle={toggleLoopSound}
+                    onPlayOneShot={() => {}}
+                    onVolumeChange={setLoopVolume}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* One-shot Sounds Section */}
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-1 h-5 bg-amber-500 rounded-full"></div>
+                <h2 className="text-sm font-semibold text-amber-200 uppercase tracking-wider">
+                  ⚡ Эффекты
+                </h2>
+                <span className="text-xs text-amber-400/50">— одноразовые, для событий</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {oneshotSounds.map(sound => (
+                  <SoundCard
+                    key={sound.id}
+                    sound={sound}
+                    isActive={false}
+                    volume={getVolumeForSound(sound)}
+                    isPlaying={playingOneshots.has(sound.id)}
+                    onToggle={() => {}}
+                    onPlayOneShot={playOneshot}
+                    onVolumeChange={setOneshotVolume}
+                  />
+                ))}
+              </div>
             </div>
           </div>
         )}
 
         {activeTab === 'mixer' && (
           <MixerPanel
-            activeSounds={activeSounds}
-            onVolumeChange={setSoundVolume}
-            onStop={toggleSound}
+            activeSounds={loopSounds}
+            onVolumeChange={setLoopVolume}
+            onStop={toggleLoopSound}
             onStopAll={stopAll}
           />
         )}
@@ -266,7 +355,7 @@ function App() {
           <PresetPanel
             presets={presets}
             onLoadPreset={loadPreset}
-            activeSounds={activeSounds}
+            activeSounds={loopSounds}
           />
         )}
       </main>

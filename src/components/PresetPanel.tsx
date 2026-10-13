@@ -11,7 +11,7 @@ export function PresetPanel({ presets, onLoadPreset, activeSounds }: PresetPanel
     <div>
       <div className="mb-6">
         <h2 className="text-lg font-semibold text-purple-200">Пресеты атмосферы</h2>
-        <p className="text-sm text-purple-400/60">Готовые наборы звуков для типичных ситуаций</p>
+        <p className="text-sm text-purple-400/60">Готовые наборы фоновых звуков для типичных ситуаций</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -82,6 +82,17 @@ export function PresetPanel({ presets, onLoadPreset, activeSounds }: PresetPanel
             </div>
           );
         })}
+      </div>
+
+      {/* Tips section */}
+      <div className="mt-8 p-4 rounded-xl bg-slate-800/30 border border-slate-700/30">
+        <h3 className="text-sm font-semibold text-purple-200 mb-2">💡 Как использовать</h3>
+        <ul className="text-xs text-purple-400/60 space-y-1.5">
+          <li>• Нажмите на пресет, чтобы загрузить набор фоновых звуков</li>
+          <li>• Перейдите в «Микшер» для тонкой настройки громкости</li>
+          <li>• Во вкладке «Звуки» добавляйте <span className="text-amber-300">⚡ эффекты</span> для ключевых моментов сессии</li>
+          <li>• Комбинируйте пресет с эффектами: например, загрузите «Битва с боссом» и добавьте «Взрыв» или «Боевой клич»</li>
+        </ul>
       </div>
     </div>
   );
