@@ -305,7 +305,7 @@ function App() {
                 <section
                   key={cat.id}
                   ref={(el) => { sectionRefs.current[cat.id] = el; }}
-                  className="scroll-mt-40"
+                  className="scroll-mt-56 pt-4"
                 >
                   {/* Category Header */}
                   <div className={`flex items-center gap-3 mb-6 pb-3 border-b border-purple-800/20`}>
