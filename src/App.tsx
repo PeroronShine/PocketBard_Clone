@@ -68,7 +68,8 @@ function App() {
       return next;
     });
 
-    const duration = ((sound.params.duration || sound.params.fileDataUrl ? 30 : 2)) * 1000 + 500;
+    const baseDuration = sound.params.fileDataUrl ? 30 : (sound.params.duration || 2);
+    const duration = baseDuration * 1000 + 500;
     setTimeout(() => {
       setPlayingOneshots(prev => {
         const next = new Set(prev);
@@ -187,9 +188,9 @@ function App() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 text-white flex flex-col">
       <header className="border-b border-purple-800/30 bg-black/30 backdrop-blur-sm flex-shrink-0">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center">
             <div className="text-3xl">🎭</div>
-            <div>
+            <div className="ml-3">
               <h1 className="text-xl font-bold bg-gradient-to-r from-amber-300 to-purple-400 bg-clip-text text-transparent">
                 PocketBard
               </h1>
@@ -197,7 +198,7 @@ function App() {
             </div>
             <button
               onClick={() => setShowSettings(true)}
-              className="ml-2 w-8 h-8 rounded-lg bg-slate-800/50 flex items-center justify-center text-slate-400 hover:bg-purple-900/50 hover:text-purple-300 transition-all border border-slate-700/30"
+              className="ml-3 w-8 h-8 rounded-lg bg-slate-800/50 flex items-center justify-center text-slate-400 hover:bg-purple-900/50 hover:text-purple-300 transition-all border border-slate-700/30"
               title="Настройки"
             >
               ⚙️
