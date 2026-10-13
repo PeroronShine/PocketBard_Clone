@@ -18,12 +18,49 @@ interface SettingsModalProps {
   onCustomSoundsChange: () => void;
 }
 
+// Тематические иконки, описывающие суть звука
+const iconGroups = [
+  {
+    name: 'Существа',
+    icons: ['🐺', '🐻', '🐉', '🦇', '🐍', '🐗', '🦅', '🐦', '🦉', '🦗', '🐸', '🐀', '🐴', '🐲', '🦂', '🕷️'],
+  },
+  {
+    name: 'Мистика',
+    icons: ['👻', '💀', '☠️', '🧟', '👹', '👺', '🧙', '🧝', '🧚', '🧞', '🦹', '🧛', '🧜', '👁️', '🔮', '👑'],
+  },
+  {
+    name: 'Природа',
+    icons: ['🌊', '🌋', '⛰️', '🌪️', '⚡', '🌧️', '☀️', '🌙', '⭐', '💫', '🌌', '🔥', '💧', '🌿', '🍃', '🌸'],
+  },
+  {
+    name: 'Битва',
+    icons: ['⚔️', '🗡️', '🏹', '🛡️', '💣', '💥', '🩸', '👊', '🪓', '🏴', '🚩', '🪖', '🎯', '🔱', '⛏️', '🪝'],
+  },
+  {
+    name: 'Эмоции',
+    icons: ['😱', '😂', '😡', '😈', '🤫', '🤐', '🎭', '💢', '✨', '💎', '🌟', '💫', '🎉', '😇', '🥶', '🤢'],
+  },
+  {
+    name: 'Предметы',
+    icons: ['🚪', '🔔', '🪙', '📜', '📖', '🕯️', '⛓️', '🪨', '🍺', '🍻', '🥃', '🍷', '🗝️', '⚱️', '🏺', '📯'],
+  },
+  {
+    name: 'Локации',
+    icons: ['🏰', '🏚️', '⛪', '🏪', '🏕️', '🌲', '🌌', '🕸️', '🏛️', '⛺', '🗿', '🌉', '🏔️', '🌁', '🏜️', '🌅'],
+  },
+  {
+    name: 'Звуки',
+    icons: ['🎵', '🎶', '🎼', '🔊', '🔈', '📢', '📣', '🎙️', '🎤', '💬', '🗣️', '👣', '🔗', '⏰', '🎪', '🎠'],
+  },
+];
+
 export function SettingsModal({ isOpen, onClose, onSettingsChange, onCustomSoundsChange }: SettingsModalProps) {
   const [settings, setSettings] = useState<AppSettings>(loadSettings());
   const [customSounds, setCustomSounds] = useState<CustomSound[]>(loadCustomSounds());
   const [activeTab, setActiveTab] = useState<'general' | 'sounds'>('general');
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingSound, setEditingSound] = useState<CustomSound | null>(null);
+  const [showIconPicker, setShowIconPicker] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form state
@@ -31,10 +68,10 @@ export function SettingsModal({ isOpen, onClose, onSettingsChange, onCustomSound
   const [formIcon, setFormIcon] = useState('🎵');
   const [formCategory, setFormCategory] = useState('tavern');
   const [formSubCategory, setFormSubCategory] = useState<'music' | 'ambient' | 'effect'>('ambient');
-  const [formMode, setFormMode] = useState<'loop' | 'oneshot'>('loop');
   const [formDescription, setFormDescription] = useState('');
   const [formFileData, setFormFileData] = useState<{ dataUrl: string; mimeType: string } | null>(null);
   const [formFileName, setFormFileName] = useState('');
+  const [formFileChanged, setFormFileChanged] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -44,6 +81,11 @@ export function SettingsModal({ isOpen, onClose, onSettingsChange, onCustomSound
   }, [isOpen]);
 
   if (!isOpen) return null;
+
+  // Режим определяется автоматически по типу звука
+  const getAutoMode = (subCategory: 'music' | 'ambient' | 'effect'): 'loop' | 'oneshot' => {
+    return subCategory === 'effect' ? 'oneshot' : 'loop';
+  };
 
   const handleVolumeChange = (vol: number) => {
     const newSettings = { ...settings, masterVolume: vol };
@@ -57,6 +99,7 @@ export function SettingsModal({ isOpen, onClose, onSettingsChange, onCustomSound
     if (!file) return;
 
     setFormFileName(file.name);
+    setFormFileChanged(true);
 
     const reader = new FileReader();
     reader.onload = () => {
@@ -73,36 +116,46 @@ export function SettingsModal({ isOpen, onClose, onSettingsChange, onCustomSound
     setFormIcon('🎵');
     setFormCategory('tavern');
     setFormSubCategory('ambient');
-    setFormMode('loop');
     setFormDescription('');
     setFormFileData(null);
     setFormFileName('');
+    setFormFileChanged(false);
     setShowAddForm(false);
+    setShowIconPicker(false);
     setEditingSound(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleSubmit = () => {
-    if (!formName.trim() || !formFileData) return;
+    if (!formName.trim()) return;
+    // Для нового звука файл обязателен, для редактирования — опционален
+    if (!editingSound && !formFileData) return;
+
+    const mode = getAutoMode(formSubCategory);
 
     if (editingSound) {
-      updateCustomSound(editingSound.id, {
+      const updates: Partial<CustomSound> = {
         name: formName,
         icon: formIcon,
         category: formCategory,
         subCategory: formSubCategory,
-        mode: formMode,
+        mode,
         description: formDescription,
-        fileDataUrl: formFileData.dataUrl,
-        fileMimeType: formFileData.mimeType,
-      });
+      };
+      // Обновляем файл только если он был изменён
+      if (formFileChanged && formFileData) {
+        updates.fileDataUrl = formFileData.dataUrl;
+        updates.fileMimeType = formFileData.mimeType;
+      }
+      updateCustomSound(editingSound.id, updates);
     } else {
+      if (!formFileData) return;
       addCustomSound({
         name: formName,
         icon: formIcon,
         category: formCategory,
         subCategory: formSubCategory,
-        mode: formMode,
+        mode,
         description: formDescription,
         fileDataUrl: formFileData.dataUrl,
         fileMimeType: formFileData.mimeType,
@@ -121,10 +174,10 @@ export function SettingsModal({ isOpen, onClose, onSettingsChange, onCustomSound
     setFormIcon(sound.icon);
     setFormCategory(sound.category);
     setFormSubCategory(sound.subCategory);
-    setFormMode(sound.mode);
     setFormDescription(sound.description);
     setFormFileData({ dataUrl: sound.fileDataUrl, mimeType: sound.fileMimeType });
-    setFormFileName('Текущий файл');
+    setFormFileName('Текущий файл загружен');
+    setFormFileChanged(false);
     setShowAddForm(true);
   };
 
@@ -136,7 +189,9 @@ export function SettingsModal({ isOpen, onClose, onSettingsChange, onCustomSound
     }
   };
 
-  const iconOptions = ['🎵', '🎶', '🎼', '🎹', '🎸', '🥁', '🎺', '🎻', '🔔', '🔊', '🎤', '🎧', '🎙️', '📯', '🪘', '🪗'];
+  const handleSubCategoryChange = (subCategory: 'music' | 'ambient' | 'effect') => {
+    setFormSubCategory(subCategory);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={onClose}>
@@ -229,6 +284,7 @@ export function SettingsModal({ isOpen, onClose, onSettingsChange, onCustomSound
                   <li>• Для фоновой музыки и эмбиента подходят длинные зацикленные файлы</li>
                   <li>• Поддерживаемые форматы: MP3, WAV, OGG, M4A</li>
                   <li>• Все добавленные звуки сохраняются в браузере</li>
+                  <li>• Режим воспроизведения определяется автоматически по типу звука</li>
                 </ul>
               </div>
             </div>
@@ -256,7 +312,9 @@ export function SettingsModal({ isOpen, onClose, onSettingsChange, onCustomSound
 
                   {/* File upload */}
                   <div>
-                    <label className="block text-xs text-purple-300/70 mb-1.5">Аудиофайл *</label>
+                    <label className="block text-xs text-purple-300/70 mb-1.5">
+                      Аудиофайл {editingSound ? '(оставьте пустым, чтобы сохранить текущий)' : '*'}
+                    </label>
                     <input
                       ref={fileInputRef}
                       type="file"
@@ -265,7 +323,10 @@ export function SettingsModal({ isOpen, onClose, onSettingsChange, onCustomSound
                       className="block w-full text-xs text-purple-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-purple-600/30 file:text-purple-200 hover:file:bg-purple-600/50 file:cursor-pointer cursor-pointer"
                     />
                     {formFileName && (
-                      <p className="text-xs text-purple-400/50 mt-1">📎 {formFileName}</p>
+                      <p className={`text-xs mt-1 ${formFileChanged ? 'text-amber-300/70' : 'text-purple-400/50'}`}>
+                        {formFileChanged ? '🔄 Будет заменён на: ' : '📎 '}
+                        {formFileName}
+                      </p>
                     )}
                   </div>
 
@@ -281,19 +342,45 @@ export function SettingsModal({ isOpen, onClose, onSettingsChange, onCustomSound
                         className="w-full px-3 py-2 bg-slate-900/50 border border-purple-700/30 rounded-lg text-sm text-white placeholder-purple-400/30 focus:outline-none focus:border-purple-500/50"
                       />
                     </div>
-                    <div>
+                    <div className="relative">
                       <label className="block text-xs text-purple-300/70 mb-1.5">Иконка</label>
-                      <div className="relative">
-                        <select
-                          value={formIcon}
-                          onChange={(e) => setFormIcon(e.target.value)}
-                          className="appearance-none w-16 h-[38px] px-2 bg-slate-900/50 border border-purple-700/30 rounded-lg text-xl text-center focus:outline-none focus:border-purple-500/50 cursor-pointer"
-                        >
-                          {iconOptions.map(icon => (
-                            <option key={icon} value={icon}>{icon}</option>
+                      <button
+                        type="button"
+                        onClick={() => setShowIconPicker(!showIconPicker)}
+                        className="w-14 h-[38px] flex items-center justify-center bg-slate-900/50 border border-purple-700/30 rounded-lg text-2xl hover:bg-purple-900/30 transition-all"
+                      >
+                        {formIcon}
+                      </button>
+                      
+                      {/* Icon Picker */}
+                      {showIconPicker && (
+                        <div className="absolute top-full right-0 mt-2 w-72 max-h-80 overflow-y-auto bg-slate-900 border border-purple-700/50 rounded-xl shadow-2xl z-10 p-3">
+                          {iconGroups.map(group => (
+                            <div key={group.name} className="mb-3">
+                              <div className="text-[10px] font-semibold text-purple-300/60 uppercase tracking-wider mb-1.5">
+                                {group.name}
+                              </div>
+                              <div className="grid grid-cols-8 gap-1">
+                                {group.icons.map(icon => (
+                                  <button
+                                    key={icon}
+                                    type="button"
+                                    onClick={() => {
+                                      setFormIcon(icon);
+                                      setShowIconPicker(false);
+                                    }}
+                                    className={`w-7 h-7 flex items-center justify-center rounded text-lg hover:bg-purple-700/30 transition-all ${
+                                      formIcon === icon ? 'bg-purple-700/50 ring-1 ring-purple-400' : ''
+                                    }`}
+                                  >
+                                    {icon}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
                           ))}
-                        </select>
-                      </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -324,10 +411,10 @@ export function SettingsModal({ isOpen, onClose, onSettingsChange, onCustomSound
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs text-purple-300/70 mb-1.5">Тип</label>
+                      <label className="block text-xs text-purple-300/70 mb-1.5">Тип звука</label>
                       <select
                         value={formSubCategory}
-                        onChange={(e) => setFormSubCategory(e.target.value as 'music' | 'ambient' | 'effect')}
+                        onChange={(e) => handleSubCategoryChange(e.target.value as 'music' | 'ambient' | 'effect')}
                         className="w-full px-3 py-2 bg-slate-900/50 border border-purple-700/30 rounded-lg text-sm text-white focus:outline-none focus:border-purple-500/50 cursor-pointer"
                       >
                         <option value="music">🎵 Фоновая музыка</option>
@@ -337,40 +424,24 @@ export function SettingsModal({ isOpen, onClose, onSettingsChange, onCustomSound
                     </div>
                   </div>
 
-                  {/* Mode */}
-                  <div>
-                    <label className="block text-xs text-purple-300/70 mb-1.5">Режим воспроизведения</label>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setFormMode('loop')}
-                        className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-all ${
-                          formMode === 'loop'
-                            ? 'bg-purple-600/50 text-purple-200 border border-purple-500/50'
-                            : 'bg-slate-800/50 text-slate-400 border border-slate-700/30 hover:bg-slate-700/50'
-                        }`}
-                      >
-                        ∞ Зацикленный
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setFormMode('oneshot')}
-                        className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-all ${
-                          formMode === 'oneshot'
-                            ? 'bg-amber-600/50 text-amber-200 border border-amber-500/50'
-                            : 'bg-slate-800/50 text-slate-400 border border-slate-700/30 hover:bg-slate-700/50'
-                        }`}
-                      >
-                        ▶ Одноразовый
-                      </button>
-                    </div>
+                  {/* Auto mode indicator */}
+                  <div className={`px-3 py-2 rounded-lg text-xs flex items-center gap-2 ${
+                    formSubCategory === 'effect'
+                      ? 'bg-amber-900/20 border border-amber-700/30 text-amber-300'
+                      : 'bg-purple-900/20 border border-purple-700/30 text-purple-300'
+                  }`}>
+                    <span>{formSubCategory === 'effect' ? '▶' : '∞'}</span>
+                    <span>
+                      Режим: <strong>{formSubCategory === 'effect' ? 'одноразовый' : 'зацикленный'}</strong>
+                      <span className="opacity-60"> (определяется типом автоматически)</span>
+                    </span>
                   </div>
 
                   {/* Buttons */}
                   <div className="flex gap-2 pt-2">
                     <button
                       onClick={handleSubmit}
-                      disabled={!formName.trim() || !formFileData}
+                      disabled={!formName.trim() || (!editingSound && !formFileData)}
                       className="flex-1 py-2 px-4 rounded-lg bg-purple-600 text-white text-sm font-medium hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                     >
                       {editingSound ? '💾 Сохранить' : '➕ Добавить'}
