@@ -8,23 +8,23 @@ export const soundLibrary: SoundConfig[] = [
   {
     id: 'tavern-music-lute', name: 'Лютня барда', icon: '🎵', category: 'tavern',
     type: 'ambient', mode: 'loop', subCategory: 'music', description: 'Весёлая мелодия на лютне',
-    params: { frequencies: [262, 330, 392, 523], lfoRate: 0.3, lfoDepth: 4 }
+    params: { frequencies: [262, 330, 392], lfoRate: 0.3, lfoDepth: 4 }
   },
   {
     id: 'tavern-music-drink', name: 'Застольная песня', icon: '🍻', category: 'tavern',
     type: 'ambient', mode: 'loop', subCategory: 'music', description: 'Пьяная песнь пьяниц',
-    params: { frequencies: [196, 247, 294, 392], lfoRate: 0.5, lfoDepth: 6 }
+    params: { frequencies: [196, 247, 294], lfoRate: 0.5, lfoDepth: 6 }
   },
   {
     id: 'tavern-music-dance', name: 'Танцевальный мотив', icon: '💃', category: 'tavern',
-    type: 'drum', mode: 'loop', subCategory: 'music', description: 'Ритм для танцев',
-    params: { drumTone: 220, rhythmPattern: [1, 0.5, 0.7, 0.5, 1, 0.5, 0.7, 0.5], rhythmBpm: 110 }
+    type: 'tone', mode: 'loop', subCategory: 'music', description: 'Ритм для танцев',
+    params: { frequencies: [220, 330], lfoRate: 2, lfoDepth: 10 }
   },
   // Эмбиент
   {
     id: 'tavern-fire', name: 'Камин', icon: '🔥', category: 'tavern',
-    type: 'fire', mode: 'loop', subCategory: 'ambient', description: 'Потрескивание дров',
-    params: { filterFreq: 600, crackleIntensity: 3 }
+    type: 'noise', mode: 'loop', subCategory: 'ambient', description: 'Потрескивание дров',
+    params: { noiseType: 'brown', filterFreq: 600, filterQ: 0.7 }
   },
   {
     id: 'tavern-crowd', name: 'Гул толпы', icon: '🗣️', category: 'tavern',
@@ -39,8 +39,8 @@ export const soundLibrary: SoundConfig[] = [
   // Эффекты
   {
     id: 'tavern-door', name: 'Стук в дверь', icon: '🚪', category: 'tavern',
-    type: 'footstep', mode: 'oneshot', subCategory: 'effect', description: 'Тяжёлый стук',
-    params: { duration: 0.8, attackTime: 0.005, decayTime: 0.1, releaseTime: 0.3 }
+    type: 'noise', mode: 'oneshot', subCategory: 'effect', description: 'Тяжёлый стук',
+    params: { noiseType: 'brown', filterFreq: 300, filterQ: 2, duration: 0.8, attackTime: 0.005, decayTime: 0.1, releaseTime: 0.3 }
   },
   {
     id: 'tavern-glass', name: 'Разбитый стакан', icon: '🥃', category: 'tavern',
@@ -55,8 +55,8 @@ export const soundLibrary: SoundConfig[] = [
   },
   {
     id: 'tavern-coin', name: 'Монеты', icon: '🪙', category: 'tavern',
-    type: 'metal', mode: 'oneshot', subCategory: 'effect', description: 'Звон монет',
-    params: { metalHarmonics: [3000, 4500, 6000, 7500], duration: 1.0, attackTime: 0.001, decayTime: 0.05, releaseTime: 0.7 }
+    type: 'tone', mode: 'oneshot', subCategory: 'effect', description: 'Звон монет',
+    params: { frequencies: [3000, 4500, 6000], duration: 1.0, attackTime: 0.001, decayTime: 0.05, releaseTime: 0.7, detune: 50 }
   },
   {
     id: 'tavern-brawl', name: 'Драка', icon: '💢', category: 'tavern',
@@ -71,33 +71,33 @@ export const soundLibrary: SoundConfig[] = [
   {
     id: 'forest-music-flute', name: 'Эльфийская флейта', icon: '🎶', category: 'forest',
     type: 'ambient', mode: 'loop', subCategory: 'music', description: 'Нежная мелодия',
-    params: { frequencies: [523, 659, 784, 1047], lfoRate: 0.2, lfoDepth: 3 }
+    params: { frequencies: [523, 659, 784], lfoRate: 0.2, lfoDepth: 3 }
   },
   {
     id: 'forest-music-harp', name: 'Арфа друидов', icon: '🎼', category: 'forest',
     type: 'ambient', mode: 'loop', subCategory: 'music', description: 'Мистическая арфа',
-    params: { frequencies: [330, 440, 554, 659], lfoRate: 0.15, lfoDepth: 2 }
+    params: { frequencies: [330, 440, 554], lfoRate: 0.15, lfoDepth: 2 }
   },
   // Эмбиент
   {
     id: 'forest-wind', name: 'Ветер в кронах', icon: '🌬️', category: 'forest',
-    type: 'wind', mode: 'loop', subCategory: 'ambient', description: 'Шелест листвы',
-    params: { filterFreq: 1500, filterQ: 1, gustIntensity: 0.3 }
+    type: 'noise', mode: 'loop', subCategory: 'ambient', description: 'Шелест листвы',
+    params: { noiseType: 'pink', filterFreq: 1500, filterQ: 1 }
   },
   {
     id: 'forest-birds', name: 'Пение птиц', icon: '🐦', category: 'forest',
-    type: 'bird', mode: 'loop', subCategory: 'ambient', description: 'Лесные птицы',
-    params: { chirpFreqRange: [2000, 5000] }
+    type: 'tone', mode: 'loop', subCategory: 'ambient', description: 'Лесные птицы',
+    params: { frequencies: [2400, 3200, 4000], lfoRate: 5, lfoDepth: 200, detune: 100 }
   },
   {
     id: 'forest-creek', name: 'Лесной ручей', icon: '💧', category: 'forest',
-    type: 'water', mode: 'loop', subCategory: 'ambient', description: 'Журчание воды',
-    params: { filterFreq: 3500, filterQ: 2, bubbleRate: 2 }
+    type: 'noise', mode: 'loop', subCategory: 'ambient', description: 'Журчание воды',
+    params: { noiseType: 'white', filterFreq: 4000, filterQ: 3 }
   },
   {
     id: 'forest-crickets', name: 'Сверчки', icon: '🦗', category: 'forest',
-    type: 'cricket', mode: 'loop', subCategory: 'ambient', description: 'Стрекотание',
-    params: { cricketSpeed: 15 }
+    type: 'tone', mode: 'loop', subCategory: 'ambient', description: 'Стрекотание',
+    params: { frequencies: [4500, 4800], lfoRate: 15, lfoDepth: 100, detune: 50 }
   },
   // Эффекты
   {
@@ -107,8 +107,9 @@ export const soundLibrary: SoundConfig[] = [
   },
   {
     id: 'forest-howl', name: 'Волчий вой', icon: '🐺', category: 'forest',
-    type: 'howl', mode: 'oneshot', subCategory: 'effect', description: 'Далёкий вой',
-    params: { howlFormant: 250, duration: 3.0, attackTime: 0.5, decayTime: 0.5, sustainLevel: 0.6, releaseTime: 1.0 }
+    type: 'tone', mode: 'oneshot', subCategory: 'effect', description: 'Далёкий вой',
+    params: { frequencies: [200, 250, 300], duration: 3.0, attackTime: 0.5, decayTime: 0.5, sustainLevel: 0.6, releaseTime: 1.0,
+      pitchEnvelope: { from: 180, to: 350, time: 1.0 }, lfoRate: 3, lfoDepth: 15 }
   },
   {
     id: 'forest-thunder', name: 'Раскат грома', icon: '⛈️', category: 'forest',
@@ -122,8 +123,9 @@ export const soundLibrary: SoundConfig[] = [
   },
   {
     id: 'forest-owl', name: 'Уханье совы', icon: '🦉', category: 'forest',
-    type: 'howl', mode: 'oneshot', subCategory: 'effect', description: 'Два ухания',
-    params: { howlFormant: 350, duration: 2.0, attackTime: 0.05, decayTime: 0.3, releaseTime: 0.5 }
+    type: 'tone', mode: 'oneshot', subCategory: 'effect', description: 'Два ухания',
+    params: { frequencies: [350], duration: 2.0, attackTime: 0.05, decayTime: 0.3, releaseTime: 0.5,
+      pitchEnvelope: { from: 400, to: 300, time: 0.4 } }
   },
 
   // ===========================
@@ -133,18 +135,18 @@ export const soundLibrary: SoundConfig[] = [
   {
     id: 'battle-music-epic', name: 'Эпическая тема', icon: '🎺', category: 'battle',
     type: 'ambient', mode: 'loop', subCategory: 'music', description: 'Героическая музыка',
-    params: { frequencies: [130, 196, 262, 330], lfoRate: 0.3, lfoDepth: 5 }
+    params: { frequencies: [130, 196, 262], lfoRate: 0.3, lfoDepth: 5 }
   },
   {
     id: 'battle-music-dark', name: 'Тёмная тема', icon: '🎻', category: 'battle',
     type: 'ambient', mode: 'loop', subCategory: 'music', description: 'Зловещая музыка',
-    params: { frequencies: [110, 139, 165, 220], lfoRate: 0.2, lfoDepth: 8 }
+    params: { frequencies: [110, 139, 165], lfoRate: 0.2, lfoDepth: 8 }
   },
   // Эмбиент
   {
     id: 'battle-drums', name: 'Боевые барабаны', icon: '🥁', category: 'battle',
-    type: 'drum', mode: 'loop', subCategory: 'ambient', description: 'Ритм битвы',
-    params: { drumTone: 60, rhythmPattern: [1, 0, 0.5, 0, 0.8, 0, 0.5, 0.3], rhythmBpm: 120 }
+    type: 'tone', mode: 'loop', subCategory: 'ambient', description: 'Ритм битвы',
+    params: { frequencies: [60, 120], lfoRate: 2, lfoDepth: 20 }
   },
   {
     id: 'battle-horns', name: 'Боевые горны', icon: '📯', category: 'battle',
@@ -159,8 +161,9 @@ export const soundLibrary: SoundConfig[] = [
   // Эффекты
   {
     id: 'battle-sword', name: 'Звон мечей', icon: '⚔️', category: 'battle',
-    type: 'metal', mode: 'oneshot', subCategory: 'effect', description: 'Удар стали',
-    params: { metalHarmonics: [800, 1547, 2341, 3477, 5123], duration: 0.8, attackTime: 0.001, decayTime: 0.05, releaseTime: 0.5 }
+    type: 'noise', mode: 'oneshot', subCategory: 'effect', description: 'Удар стали',
+    params: { noiseType: 'white', filterFreq: 8000, filterQ: 10, duration: 0.8, attackTime: 0.001, decayTime: 0.05, releaseTime: 0.5,
+      filterEnvelope: { from: 12000, to: 1000, time: 0.6 } }
   },
   {
     id: 'battle-arrow', name: 'Свист стрелы', icon: '🏹', category: 'battle',
@@ -170,13 +173,14 @@ export const soundLibrary: SoundConfig[] = [
   },
   {
     id: 'battle-shield', name: 'Удар в щит', icon: '🛡️', category: 'battle',
-    type: 'metal', mode: 'oneshot', subCategory: 'effect', description: 'Тяжёлый удар',
-    params: { metalHarmonics: [200, 450, 780, 1200], duration: 0.6, attackTime: 0.001, decayTime: 0.08, releaseTime: 0.3 }
+    type: 'noise', mode: 'oneshot', subCategory: 'effect', description: 'Тяжёлый удар',
+    params: { noiseType: 'brown', filterFreq: 1500, filterQ: 5, duration: 0.6, attackTime: 0.001, decayTime: 0.08, releaseTime: 0.3 }
   },
   {
     id: 'battle-cry', name: 'Боевой клич', icon: '🗡️', category: 'battle',
-    type: 'howl', mode: 'oneshot', subCategory: 'effect', description: 'Крик воина',
-    params: { howlFormant: 200, duration: 1.5, attackTime: 0.05, decayTime: 0.2, sustainLevel: 0.8, releaseTime: 0.5 }
+    type: 'tone', mode: 'oneshot', subCategory: 'effect', description: 'Крик воина',
+    params: { frequencies: [150, 200, 300], duration: 1.5, attackTime: 0.05, decayTime: 0.2, sustainLevel: 0.8, releaseTime: 0.5,
+      pitchEnvelope: { from: 120, to: 250, time: 0.3 }, lfoRate: 6, lfoDepth: 20 }
   },
   {
     id: 'battle-explosion', name: 'Взрыв', icon: '💣', category: 'battle',
@@ -192,7 +196,7 @@ export const soundLibrary: SoundConfig[] = [
   {
     id: 'dungeon-music-creepy', name: 'Зловещая мелодия', icon: '🎹', category: 'dungeon',
     type: 'ambient', mode: 'loop', subCategory: 'music', description: 'Мрачные аккорды',
-    params: { frequencies: [110, 131, 165, 220], lfoRate: 0.1, lfoDepth: 6 }
+    params: { frequencies: [110, 131, 165], lfoRate: 0.1, lfoDepth: 6 }
   },
   {
     id: 'dungeon-music-ancient', name: 'Древний мотив', icon: '📜', category: 'dungeon',
@@ -202,13 +206,13 @@ export const soundLibrary: SoundConfig[] = [
   // Эмбиент
   {
     id: 'dungeon-drips', name: 'Капли воды', icon: '💧', category: 'dungeon',
-    type: 'water', mode: 'loop', subCategory: 'ambient', description: 'Капает с потолка',
-    params: { filterFreq: 3000, filterQ: 3, bubbleRate: 1 }
+    type: 'noise', mode: 'loop', subCategory: 'ambient', description: 'Капает с потолка',
+    params: { noiseType: 'white', filterFreq: 3000, filterQ: 3 }
   },
   {
     id: 'dungeon-wind', name: 'Сквозняк', icon: '🌫️', category: 'dungeon',
-    type: 'wind', mode: 'loop', subCategory: 'ambient', description: 'Холодный ветер',
-    params: { filterFreq: 400, filterQ: 3, gustIntensity: 0.4 }
+    type: 'noise', mode: 'loop', subCategory: 'ambient', description: 'Холодный ветер',
+    params: { noiseType: 'brown', filterFreq: 400, filterQ: 3 }
   },
   {
     id: 'dungeon-drone', name: 'Мистический гул', icon: '👁️', category: 'dungeon',
@@ -218,8 +222,9 @@ export const soundLibrary: SoundConfig[] = [
   // Эффекты
   {
     id: 'dungeon-chains', name: 'Звон цепей', icon: '⛓️', category: 'dungeon',
-    type: 'metal', mode: 'oneshot', subCategory: 'effect', description: 'Цепи волочатся',
-    params: { metalHarmonics: [2000, 3500, 5200, 6800, 8500], duration: 1.5, attackTime: 0.01, decayTime: 0.1, releaseTime: 1.0 }
+    type: 'noise', mode: 'oneshot', subCategory: 'effect', description: 'Цепи волочатся',
+    params: { noiseType: 'white', filterFreq: 6000, filterQ: 8, duration: 1.5, attackTime: 0.01, decayTime: 0.1, releaseTime: 1.0,
+      filterEnvelope: { from: 8000, to: 2000, time: 1.2 } }
   },
   {
     id: 'dungeon-stone', name: 'Движение камня', icon: '🪨', category: 'dungeon',
@@ -228,18 +233,20 @@ export const soundLibrary: SoundConfig[] = [
   },
   {
     id: 'dungeon-scream', name: 'Крик в темноте', icon: '😱', category: 'dungeon',
-    type: 'howl', mode: 'oneshot', subCategory: 'effect', description: 'Леденящий крик',
-    params: { howlFormant: 600, duration: 2.0, attackTime: 0.05, decayTime: 0.3, sustainLevel: 0.4, releaseTime: 1.0 }
+    type: 'tone', mode: 'oneshot', subCategory: 'effect', description: 'Леденящий крик',
+    params: { frequencies: [600], duration: 2.0, attackTime: 0.05, decayTime: 0.3, sustainLevel: 0.4, releaseTime: 1.0,
+      pitchEnvelope: { from: 800, to: 400, time: 1.5 }, lfoRate: 10, lfoDepth: 50 }
   },
   {
     id: 'dungeon-footstep', name: 'Шаги в темноте', icon: '👣', category: 'dungeon',
-    type: 'footstep', mode: 'oneshot', subCategory: 'effect', description: 'Кто-то приближается',
-    params: { duration: 2.0, attackTime: 0.005, decayTime: 0.05, releaseTime: 0.1 }
+    type: 'noise', mode: 'oneshot', subCategory: 'effect', description: 'Кто-то приближается',
+    params: { noiseType: 'brown', filterFreq: 800, filterQ: 3, duration: 2.0, attackTime: 0.005, decayTime: 0.05, releaseTime: 0.1 }
   },
   {
     id: 'dungeon-roar', name: 'Рык чудовища', icon: '🐲', category: 'dungeon',
-    type: 'howl', mode: 'oneshot', subCategory: 'effect', description: 'Глухой рык',
-    params: { howlFormant: 150, duration: 2.5, attackTime: 0.1, decayTime: 0.3, sustainLevel: 0.7, releaseTime: 1.0 }
+    type: 'tone', mode: 'oneshot', subCategory: 'effect', description: 'Глухой рык',
+    params: { frequencies: [150, 200], duration: 2.5, attackTime: 0.1, decayTime: 0.3, sustainLevel: 0.7, releaseTime: 1.0,
+      pitchEnvelope: { from: 100, to: 200, time: 1.0 }, lfoRate: 5, lfoDepth: 30 }
   },
 
   // ===========================
@@ -248,8 +255,8 @@ export const soundLibrary: SoundConfig[] = [
   // Музыка
   {
     id: 'city-music-march', name: 'Городской марш', icon: '🎺', category: 'city',
-    type: 'drum', mode: 'loop', subCategory: 'music', description: 'Торжественный марш',
-    params: { drumTone: 262, rhythmPattern: [1, 0.5, 0.5, 1, 0.5, 0.5, 1, 1], rhythmBpm: 90 }
+    type: 'tone', mode: 'loop', subCategory: 'music', description: 'Торжественный марш',
+    params: { frequencies: [262, 330], lfoRate: 1, lfoDepth: 10 }
   },
   {
     id: 'city-music-bard', name: 'Городской бард', icon: '🎸', category: 'city',
@@ -264,13 +271,13 @@ export const soundLibrary: SoundConfig[] = [
   },
   {
     id: 'city-forge', name: 'Кузница', icon: '🔨', category: 'city',
-    type: 'drum', mode: 'loop', subCategory: 'ambient', description: 'Стук молота',
-    params: { drumTone: 800, rhythmPattern: [1, 0, 0, 0.6, 0, 0, 1, 0, 0, 0.6, 0, 0], rhythmBpm: 60 }
+    type: 'tone', mode: 'loop', subCategory: 'ambient', description: 'Стук молота',
+    params: { frequencies: [800], lfoRate: 1, lfoDepth: 20 }
   },
   {
     id: 'city-bells', name: 'Колокола', icon: '🔔', category: 'city',
-    type: 'bell', mode: 'loop', subCategory: 'ambient', description: 'Звон колоколов',
-    params: { frequencies: [523], bellPartial: [1, 2.0, 2.4, 3.0], lfoRate: 0.1, lfoDepth: 2 }
+    type: 'tone', mode: 'loop', subCategory: 'ambient', description: 'Звон колоколов',
+    params: { frequencies: [523, 659, 784], lfoRate: 0.1, lfoDepth: 2 }
   },
   // Эффекты
   {
@@ -280,18 +287,19 @@ export const soundLibrary: SoundConfig[] = [
   },
   {
     id: 'city-guard', name: 'Клич стражи', icon: '💂', category: 'city',
-    type: 'howl', mode: 'oneshot', subCategory: 'effect', description: '«Стой, кто идёт!»',
-    params: { howlFormant: 220, duration: 1.5, attackTime: 0.05, decayTime: 0.2, sustainLevel: 0.7, releaseTime: 0.5 }
+    type: 'tone', mode: 'oneshot', subCategory: 'effect', description: '«Стой, кто идёт!»',
+    params: { frequencies: [200, 250], duration: 1.5, attackTime: 0.05, decayTime: 0.2, sustainLevel: 0.7, releaseTime: 0.5, lfoRate: 4, lfoDepth: 10 }
   },
   {
     id: 'city-announcement', name: 'Труба герольда', icon: '📜', category: 'city',
-    type: 'bell', mode: 'oneshot', subCategory: 'effect', description: 'Важное объявление',
-    params: { frequencies: [440], bellPartial: [1, 1.5, 2], duration: 2.0, attackTime: 0.1, decayTime: 0.3, sustainLevel: 0.5, releaseTime: 0.8 }
+    type: 'tone', mode: 'oneshot', subCategory: 'effect', description: 'Важное объявление',
+    params: { frequencies: [440, 554, 659], duration: 2.0, attackTime: 0.1, decayTime: 0.3, sustainLevel: 0.5, releaseTime: 0.8,
+      pitchEnvelope: { from: 350, to: 500, time: 0.5 } }
   },
   {
     id: 'city-alarm', name: 'Колокольный набат', icon: '🚨', category: 'city',
-    type: 'bell', mode: 'oneshot', subCategory: 'effect', description: 'Тревога!',
-    params: { frequencies: [300], bellPartial: [1, 2.0, 2.4, 3.0, 4.2], duration: 3.0, attackTime: 0.05, decayTime: 0.2, sustainLevel: 0.8, releaseTime: 1.0 }
+    type: 'tone', mode: 'oneshot', subCategory: 'effect', description: 'Тревога!',
+    params: { frequencies: [300, 380], duration: 3.0, attackTime: 0.05, decayTime: 0.2, sustainLevel: 0.8, releaseTime: 1.0, lfoRate: 6, lfoDepth: 5 }
   },
 
   // ===========================
@@ -327,13 +335,13 @@ export const soundLibrary: SoundConfig[] = [
   // Эффекты
   {
     id: 'temple-bell', name: 'Колокол храма', icon: '🔔', category: 'temple',
-    type: 'bell', mode: 'oneshot', subCategory: 'effect', description: 'Один удар',
-    params: { frequencies: [130], bellPartial: [1, 2.0, 2.4, 3.0, 4.2, 5.4, 6.7], duration: 4.0, attackTime: 0.01, decayTime: 0.5, sustainLevel: 0.3, releaseTime: 3.0 }
+    type: 'tone', mode: 'oneshot', subCategory: 'effect', description: 'Один удар',
+    params: { frequencies: [130, 260, 390], duration: 4.0, attackTime: 0.01, decayTime: 0.5, sustainLevel: 0.3, releaseTime: 3.0, detune: 5 }
   },
   {
     id: 'temple-divine', name: 'Божественный свет', icon: '✨', category: 'temple',
-    type: 'magic', mode: 'oneshot', subCategory: 'effect', description: 'Вспышка энергии',
-    params: { frequencies: [523], magicShimmer: 8, duration: 3.0, attackTime: 0.3, decayTime: 0.5, sustainLevel: 0.4, releaseTime: 2.0 }
+    type: 'ambient', mode: 'oneshot', subCategory: 'effect', description: 'Вспышка энергии',
+    params: { frequencies: [523, 659, 784], duration: 3.0, attackTime: 0.3, decayTime: 0.5, sustainLevel: 0.4, releaseTime: 2.0, lfoRate: 0.5, lfoDepth: 3 }
   },
   {
     id: 'temple-page', name: 'Перелистнутие', icon: '📖', category: 'temple',
@@ -363,29 +371,31 @@ export const soundLibrary: SoundConfig[] = [
   // Эмбиент
   {
     id: 'night-crickets', name: 'Ночные сверчки', icon: '🌙', category: 'night',
-    type: 'cricket', mode: 'loop', subCategory: 'ambient', description: 'Стрекотание',
-    params: { cricketSpeed: 12 }
+    type: 'tone', mode: 'loop', subCategory: 'ambient', description: 'Стрекотание',
+    params: { frequencies: [4200, 4600], lfoRate: 12, lfoDepth: 80, detune: 30 }
   },
   {
     id: 'night-wind', name: 'Ночной ветер', icon: '🌬️', category: 'night',
-    type: 'wind', mode: 'loop', subCategory: 'ambient', description: 'Холодный ветер',
-    params: { filterFreq: 800, filterQ: 2, gustIntensity: 0.3 }
+    type: 'noise', mode: 'loop', subCategory: 'ambient', description: 'Холодный ветер',
+    params: { noiseType: 'pink', filterFreq: 800, filterQ: 2 }
   },
   // Эффекты
   {
     id: 'night-wolf', name: 'Вой волка', icon: '🐺', category: 'night',
-    type: 'howl', mode: 'oneshot', subCategory: 'effect', description: 'Одинокий вой',
-    params: { howlFormant: 200, duration: 3.5, attackTime: 0.5, decayTime: 0.5, sustainLevel: 0.5, releaseTime: 1.5 }
+    type: 'tone', mode: 'oneshot', subCategory: 'effect', description: 'Одинокий вой',
+    params: { frequencies: [200, 250, 300], duration: 3.5, attackTime: 0.5, decayTime: 0.5, sustainLevel: 0.5, releaseTime: 1.5,
+      pitchEnvelope: { from: 180, to: 380, time: 1.0 }, lfoRate: 4, lfoDepth: 20 }
   },
   {
     id: 'night-ghost', name: 'Призрак', icon: '👻', category: 'night',
-    type: 'magic', mode: 'oneshot', subCategory: 'effect', description: 'Ледяной шёпот',
-    params: { frequencies: [300], magicShimmer: 6, duration: 3.0, attackTime: 0.5, decayTime: 0.5, sustainLevel: 0.3, releaseTime: 2.0 }
+    type: 'ambient', mode: 'oneshot', subCategory: 'effect', description: 'Ледяной шёпот',
+    params: { frequencies: [300, 450, 600], duration: 3.0, attackTime: 0.5, decayTime: 0.5, sustainLevel: 0.3, releaseTime: 2.0, lfoRate: 2, lfoDepth: 30 }
   },
   {
     id: 'night-owl', name: 'Сова', icon: '🦉', category: 'night',
-    type: 'howl', mode: 'oneshot', subCategory: 'effect', description: 'Угу-угу!',
-    params: { howlFormant: 380, duration: 1.5, attackTime: 0.05, decayTime: 0.2, releaseTime: 0.5 }
+    type: 'tone', mode: 'oneshot', subCategory: 'effect', description: 'Угу-угу!',
+    params: { frequencies: [380], duration: 1.5, attackTime: 0.05, decayTime: 0.2, releaseTime: 0.5,
+      pitchEnvelope: { from: 420, to: 340, time: 0.3 } }
   },
   {
     id: 'night-door', name: 'Скрип двери', icon: '🚪', category: 'night',
@@ -411,8 +421,8 @@ export const soundLibrary: SoundConfig[] = [
   // Эмбиент
   {
     id: 'magic-crystal', name: 'Кристаллы', icon: '💎', category: 'magic',
-    type: 'bell', mode: 'loop', subCategory: 'ambient', description: 'Звон кристаллов',
-    params: { frequencies: [880], bellPartial: [1, 1.5, 2.0, 2.5], lfoRate: 0.5, lfoDepth: 10 }
+    type: 'tone', mode: 'loop', subCategory: 'ambient', description: 'Звон кристаллов',
+    params: { frequencies: [880, 1108, 1320], lfoRate: 0.5, lfoDepth: 10, detune: 15 }
   },
   {
     id: 'magic-portal', name: 'Портал', icon: '🌀', category: 'magic',
@@ -427,28 +437,31 @@ export const soundLibrary: SoundConfig[] = [
   // Эффекты
   {
     id: 'magic-cast', name: 'Заклинание', icon: '🪄', category: 'magic',
-    type: 'magic', mode: 'oneshot', subCategory: 'effect', description: 'Вспышка магии',
-    params: { frequencies: [440], magicShimmer: 12, duration: 1.5, attackTime: 0.01, decayTime: 0.2, sustainLevel: 0.4, releaseTime: 1.0 }
+    type: 'ambient', mode: 'oneshot', subCategory: 'effect', description: 'Вспышка магии',
+    params: { frequencies: [440, 660, 880], duration: 1.5, attackTime: 0.01, decayTime: 0.2, sustainLevel: 0.4, releaseTime: 1.0,
+      pitchEnvelope: { from: 200, to: 1200, time: 0.5 } }
   },
   {
     id: 'magic-sparkle', name: 'Искры', icon: '✨', category: 'magic',
-    type: 'magic', mode: 'oneshot', subCategory: 'effect', description: 'Россыпь искр',
-    params: { frequencies: [2000], magicShimmer: 8, duration: 0.8, attackTime: 0.005, decayTime: 0.1, releaseTime: 0.5 }
+    type: 'noise', mode: 'oneshot', subCategory: 'effect', description: 'Россыпь искр',
+    params: { noiseType: 'white', filterFreq: 10000, filterQ: 10, duration: 0.8, attackTime: 0.005, decayTime: 0.1, releaseTime: 0.5,
+      filterEnvelope: { from: 12000, to: 3000, time: 0.6 } }
   },
   {
     id: 'magic-summon', name: 'Призыв', icon: '🔮', category: 'magic',
-    type: 'magic', mode: 'oneshot', subCategory: 'effect', description: 'Ритуал призыва',
-    params: { frequencies: [110], magicShimmer: 15, duration: 4.0, attackTime: 0.5, decayTime: 1.0, sustainLevel: 0.7, releaseTime: 2.0 }
+    type: 'ambient', mode: 'oneshot', subCategory: 'effect', description: 'Ритуал призыва',
+    params: { frequencies: [55, 110, 165, 220], duration: 4.0, attackTime: 0.5, decayTime: 1.0, sustainLevel: 0.7, releaseTime: 2.0, lfoRate: 2, lfoDepth: 15 }
   },
   {
     id: 'magic-teleport', name: 'Телепортация', icon: '💫', category: 'magic',
-    type: 'magic', mode: 'oneshot', subCategory: 'effect', description: 'Исчезновение',
-    params: { frequencies: [500], magicShimmer: 10, duration: 1.0, attackTime: 0.01, decayTime: 0.1, sustainLevel: 0.2, releaseTime: 0.5 }
+    type: 'ambient', mode: 'oneshot', subCategory: 'effect', description: 'Исчезновение',
+    params: { frequencies: [500, 800, 1200], duration: 1.0, attackTime: 0.01, decayTime: 0.1, sustainLevel: 0.2, releaseTime: 0.5,
+      pitchEnvelope: { from: 2000, to: 100, time: 0.8 } }
   },
   {
     id: 'magic-heal', name: 'Исцеление', icon: '💚', category: 'magic',
-    type: 'magic', mode: 'oneshot', subCategory: 'effect', description: 'Свет исцеления',
-    params: { frequencies: [392], magicShimmer: 8, duration: 2.5, attackTime: 0.3, decayTime: 0.5, sustainLevel: 0.5, releaseTime: 1.5 }
+    type: 'ambient', mode: 'oneshot', subCategory: 'effect', description: 'Свет исцеления',
+    params: { frequencies: [392, 494, 587], duration: 2.5, attackTime: 0.3, decayTime: 0.5, sustainLevel: 0.5, releaseTime: 1.5, lfoRate: 0.3, lfoDepth: 3 }
   },
 ];
 

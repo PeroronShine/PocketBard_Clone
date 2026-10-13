@@ -1,17 +1,11 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { audioEngine, SoundConfig } from './audio/AudioEngine';
-import { soundLibrary, categories, presets, Preset } from './data/sounds';
+import { categories, presets, Preset } from './data/sounds';
 import { SoundCard } from './components/SoundCard';
 import { MixerPanel } from './components/MixerPanel';
 import { PresetPanel } from './components/PresetPanel';
 import { SettingsModal } from './components/SettingsModal';
-import {
-  loadCustomSounds,
-  customSoundToConfig,
-  loadSettings,
-  saveSettings,
-  AppSettings,
-} from './store/customSounds';
+import { getAllSounds, loadSettings, saveSettings, AppSettings } from './store/customSounds';
 
 type Tab = 'sounds' | 'mixer' | 'presets';
 
@@ -24,16 +18,14 @@ function App() {
   const [masterVolume, setMasterVolume] = useState(() => loadSettings().masterVolume);
   const [isInitialized, setIsInitialized] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [customSoundsVersion, setCustomSoundsVersion] = useState(0);
+  const [soundsVersion, setSoundsVersion] = useState(0);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animFrameRef = useRef<number>(0);
 
-  // Combine built-in and custom sounds
   const allSounds = useCallback((): SoundConfig[] => {
-    const customSounds = loadCustomSounds().map(customSoundToConfig);
-    return [...soundLibrary, ...customSounds];
-  }, [customSoundsVersion]);
+    return getAllSounds();
+  }, [soundsVersion]);
 
   const initAudio = useCallback(() => {
     if (!isInitialized) {
@@ -137,11 +129,10 @@ function App() {
     audioEngine.setMasterVolume(settings.masterVolume);
   }, []);
 
-  const handleCustomSoundsChange = useCallback(() => {
-    setCustomSoundsVersion(v => v + 1);
+  const handleSoundsChange = useCallback(() => {
+    setSoundsVersion(v => v + 1);
   }, []);
 
-  // Visualizer
   useEffect(() => {
     if (!isInitialized) return;
     const canvas = canvasRef.current;
@@ -176,7 +167,6 @@ function App() {
     return () => cancelAnimationFrame(animFrameRef.current);
   }, [isInitialized]);
 
-  // Apply master volume on init
   useEffect(() => {
     audioEngine.setMasterVolume(masterVolume);
   }, [masterVolume]);
@@ -195,7 +185,6 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 text-white flex flex-col">
-      {/* Header */}
       <header className="border-b border-purple-800/30 bg-black/30 backdrop-blur-sm flex-shrink-0">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -206,7 +195,6 @@ function App() {
               </h1>
               <p className="text-xs text-purple-300/70">Атмосферный микшер для D&D</p>
             </div>
-            {/* Settings Button */}
             <button
               onClick={() => setShowSettings(true)}
               className="ml-2 w-8 h-8 rounded-lg bg-slate-800/50 flex items-center justify-center text-slate-400 hover:bg-purple-900/50 hover:text-purple-300 transition-all border border-slate-700/30"
@@ -236,7 +224,6 @@ function App() {
           </div>
         </div>
 
-        {/* Tab Navigation */}
         <nav className="border-t border-purple-800/20">
           <div className="max-w-7xl mx-auto px-4 flex gap-1">
             {[
@@ -260,7 +247,6 @@ function App() {
           </div>
         </nav>
 
-        {/* Category Buttons */}
         {activeTab === 'sounds' && (
           <div className="border-t border-purple-800/10 bg-black/20">
             <div className="max-w-7xl mx-auto px-4 py-2 flex gap-2 overflow-x-auto scrollbar-hide">
@@ -283,25 +269,20 @@ function App() {
         )}
       </header>
 
-      {/* Visualizer */}
       {isInitialized && activeCount > 0 && (
         <div className="h-12 border-b border-purple-800/20 bg-black/20 flex-shrink-0">
           <canvas ref={canvasRef} width={1200} height={48} className="w-full h-full" />
         </div>
       )}
 
-      {/* Main Content */}
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-6">
         {activeTab === 'sounds' && (
           <div className="space-y-6">
-            {/* Music Section */}
             {musicSounds.length > 0 && (
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-1 h-4 bg-fuchsia-500 rounded-full"></div>
-                  <h3 className="text-xs font-semibold text-fuchsia-300 uppercase tracking-wider">
-                    🎵 Фоновая музыка
-                  </h3>
+                  <h3 className="text-xs font-semibold text-fuchsia-300 uppercase tracking-wider">🎵 Фоновая музыка</h3>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                   {musicSounds.map(sound => (
@@ -321,14 +302,11 @@ function App() {
               </div>
             )}
 
-            {/* Ambient Section */}
             {ambientSounds.length > 0 && (
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-1 h-4 bg-purple-500 rounded-full"></div>
-                  <h3 className="text-xs font-semibold text-purple-300 uppercase tracking-wider">
-                    🎧 Эмбиент
-                  </h3>
+                  <h3 className="text-xs font-semibold text-purple-300 uppercase tracking-wider">🎧 Эмбиент</h3>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                   {ambientSounds.map(sound => (
@@ -348,14 +326,11 @@ function App() {
               </div>
             )}
 
-            {/* Effects Section */}
             {effectSounds.length > 0 && (
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-1 h-4 bg-amber-500 rounded-full"></div>
-                  <h3 className="text-xs font-semibold text-amber-300 uppercase tracking-wider">
-                    ⚡ Одноразовые эффекты
-                  </h3>
+                  <h3 className="text-xs font-semibold text-amber-300 uppercase tracking-wider">⚡ Одноразовые эффекты</h3>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                   {effectSounds.map(sound => (
@@ -395,19 +370,15 @@ function App() {
         )}
       </main>
 
-      {/* Footer */}
       <footer className="border-t border-purple-800/20 bg-black/20 py-3 text-center flex-shrink-0">
-        <p className="text-xs text-purple-400/50">
-          🎭 PocketBard — Создавай атмосферу для своих приключений
-        </p>
+        <p className="text-xs text-purple-400/50">🎭 PocketBard — Создавай атмосферу для своих приключений</p>
       </footer>
 
-      {/* Settings Modal */}
       <SettingsModal
         isOpen={showSettings}
         onClose={() => setShowSettings(false)}
         onSettingsChange={handleSettingsChange}
-        onCustomSoundsChange={handleCustomSoundsChange}
+        onSoundsChange={handleSoundsChange}
       />
     </div>
   );
