@@ -4,23 +4,36 @@ import { soundLibrary, categories, presets, Preset } from './data/sounds';
 import { SoundCard } from './components/SoundCard';
 import { MixerPanel } from './components/MixerPanel';
 import { PresetPanel } from './components/PresetPanel';
+import { SettingsModal } from './components/SettingsModal';
+import {
+  loadCustomSounds,
+  customSoundToConfig,
+  loadSettings,
+  saveSettings,
+  AppSettings,
+} from './store/customSounds';
 
 type Tab = 'sounds' | 'mixer' | 'presets';
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('sounds');
   const [selectedCategory, setSelectedCategory] = useState<string>('tavern');
-  // Loop sounds: Map<soundId, volume>
   const [loopSounds, setLoopSounds] = useState<Map<string, number>>(new Map());
-  // One-shot volumes: Map<soundId, volume>
   const [oneshotVolumes, setOneshotVolumes] = useState<Map<string, number>>(new Map());
-  // Currently playing one-shots
   const [playingOneshots, setPlayingOneshots] = useState<Set<string>>(new Set());
-  const [masterVolume, setMasterVolume] = useState(0.7);
+  const [masterVolume, setMasterVolume] = useState(() => loadSettings().masterVolume);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [customSoundsVersion, setCustomSoundsVersion] = useState(0);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animFrameRef = useRef<number>(0);
+
+  // Combine built-in and custom sounds
+  const allSounds = useCallback((): SoundConfig[] => {
+    const customSounds = loadCustomSounds().map(customSoundToConfig);
+    return [...soundLibrary, ...customSounds];
+  }, [customSoundsVersion]);
 
   const initAudio = useCallback(() => {
     if (!isInitialized) {
@@ -31,13 +44,14 @@ function App() {
 
   const toggleLoopSound = useCallback((soundId: string) => {
     initAudio();
+    const sounds = allSounds();
     setLoopSounds(prev => {
       const next = new Map(prev);
       if (next.has(soundId)) {
         audioEngine.stopSound(soundId);
         next.delete(soundId);
       } else {
-        const sound = soundLibrary.find(s => s.id === soundId);
+        const sound = sounds.find(s => s.id === soundId);
         if (sound) {
           const vol = 0.5;
           audioEngine.playSound(soundId, sound, vol);
@@ -46,11 +60,12 @@ function App() {
       }
       return next;
     });
-  }, [initAudio]);
+  }, [initAudio, allSounds]);
 
   const playOneshot = useCallback((soundId: string) => {
     initAudio();
-    const sound = soundLibrary.find(s => s.id === soundId);
+    const sounds = allSounds();
+    const sound = sounds.find(s => s.id === soundId);
     if (!sound) return;
     const vol = oneshotVolumes.get(soundId) || 0.7;
     audioEngine.playOneShot(soundId, sound, vol);
@@ -61,7 +76,7 @@ function App() {
       return next;
     });
 
-    const duration = (sound.params.duration || 2) * 1000 + 200;
+    const duration = ((sound.params.duration || sound.params.fileDataUrl ? 30 : 2)) * 1000 + 500;
     setTimeout(() => {
       setPlayingOneshots(prev => {
         const next = new Set(prev);
@@ -69,7 +84,7 @@ function App() {
         return next;
       });
     }, duration);
-  }, [initAudio, oneshotVolumes]);
+  }, [initAudio, oneshotVolumes, allSounds]);
 
   const setLoopVolume = useCallback((soundId: string, volume: number) => {
     audioEngine.setSoundVolume(soundId, volume);
@@ -91,9 +106,10 @@ function App() {
   const loadPreset = useCallback((preset: Preset) => {
     initAudio();
     audioEngine.stopAll();
+    const sounds = allSounds();
     const newLoop = new Map<string, number>();
     preset.sounds.forEach(({ id, volume }) => {
-      const sound = soundLibrary.find(s => s.id === id);
+      const sound = sounds.find(s => s.id === id);
       if (sound && sound.mode === 'loop') {
         audioEngine.playSound(id, sound, volume);
         newLoop.set(id, volume);
@@ -102,7 +118,7 @@ function App() {
     setLoopSounds(newLoop);
     setPlayingOneshots(new Set());
     setActiveTab('mixer');
-  }, [initAudio]);
+  }, [initAudio, allSounds]);
 
   const stopAll = useCallback(() => {
     audioEngine.stopAll();
@@ -113,6 +129,16 @@ function App() {
   const handleMasterVolume = useCallback((vol: number) => {
     setMasterVolume(vol);
     audioEngine.setMasterVolume(vol);
+    saveSettings({ masterVolume: vol });
+  }, []);
+
+  const handleSettingsChange = useCallback((settings: AppSettings) => {
+    setMasterVolume(settings.masterVolume);
+    audioEngine.setMasterVolume(settings.masterVolume);
+  }, []);
+
+  const handleCustomSoundsChange = useCallback(() => {
+    setCustomSoundsVersion(v => v + 1);
   }, []);
 
   // Visualizer
@@ -150,13 +176,19 @@ function App() {
     return () => cancelAnimationFrame(animFrameRef.current);
   }, [isInitialized]);
 
+  // Apply master volume on init
+  useEffect(() => {
+    audioEngine.setMasterVolume(masterVolume);
+  }, [masterVolume]);
+
   const getVolumeForSound = (sound: SoundConfig): number => {
     if (sound.mode === 'loop') return loopSounds.get(sound.id) || 0;
     return oneshotVolumes.get(sound.id) || 0.7;
   };
 
   const activeCount = loopSounds.size + playingOneshots.size;
-  const categorySounds = soundLibrary.filter(s => s.category === selectedCategory);
+  const sounds = allSounds();
+  const categorySounds = sounds.filter(s => s.category === selectedCategory);
   const musicSounds = categorySounds.filter(s => s.subCategory === 'music');
   const ambientSounds = categorySounds.filter(s => s.subCategory === 'ambient');
   const effectSounds = categorySounds.filter(s => s.subCategory === 'effect');
@@ -174,6 +206,14 @@ function App() {
               </h1>
               <p className="text-xs text-purple-300/70">Атмосферный микшер для D&D</p>
             </div>
+            {/* Settings Button */}
+            <button
+              onClick={() => setShowSettings(true)}
+              className="ml-2 w-8 h-8 rounded-lg bg-slate-800/50 flex items-center justify-center text-slate-400 hover:bg-purple-900/50 hover:text-purple-300 transition-all border border-slate-700/30"
+              title="Настройки"
+            >
+              ⚙️
+            </button>
           </div>
           
           <div className="flex items-center gap-4">
@@ -193,19 +233,6 @@ function App() {
                 </button>
               </div>
             )}
-            
-            <div className="flex items-center gap-2">
-              <span className="text-sm">🔊</span>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.01"
-                value={masterVolume}
-                onChange={(e) => handleMasterVolume(parseFloat(e.target.value))}
-                className="w-20 sm:w-24 h-1.5 bg-purple-900 rounded-lg appearance-none cursor-pointer accent-purple-400"
-              />
-            </div>
           </div>
         </div>
 
@@ -233,7 +260,7 @@ function App() {
           </div>
         </nav>
 
-        {/* Category Buttons (only on sounds tab) */}
+        {/* Category Buttons */}
         {activeTab === 'sounds' && (
           <div className="border-t border-purple-800/10 bg-black/20">
             <div className="max-w-7xl mx-auto px-4 py-2 flex gap-2 overflow-x-auto scrollbar-hide">
@@ -374,6 +401,14 @@ function App() {
           🎭 PocketBard — Создавай атмосферу для своих приключений
         </p>
       </footer>
+
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        onSettingsChange={handleSettingsChange}
+        onCustomSoundsChange={handleCustomSoundsChange}
+      />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 // Audio Engine with realistic procedural sound generation
 
-export type SoundType = 'noise' | 'tone' | 'rhythm' | 'ambient' | 'fire' | 'bird' | 'wind' | 'water' | 'drum' | 'metal' | 'howl' | 'cricket' | 'footstep' | 'bell' | 'magic';
+export type SoundType = 'noise' | 'tone' | 'rhythm' | 'ambient' | 'fire' | 'bird' | 'wind' | 'water' | 'drum' | 'metal' | 'howl' | 'cricket' | 'footstep' | 'bell' | 'magic' | 'custom';
 export type SoundMode = 'loop' | 'oneshot';
 
 export interface SoundConfig {
@@ -42,6 +42,9 @@ export interface SoundParams {
   cricketSpeed?: number;
   bellPartial?: number[];
   magicShimmer?: number;
+  // Custom sound support
+  fileDataUrl?: string;
+  fileMimeType?: string;
 }
 
 interface ActiveSound {
@@ -155,6 +158,7 @@ class AudioEngine {
       case 'tone': this.generateTone(ctx, gainNode, nodes, params); break;
       case 'rhythm': this.generateRhythm(ctx, gainNode, nodes, intervalIds, params); break;
       case 'ambient': this.generateAmbient(ctx, gainNode, nodes, params); break;
+      case 'custom': this.generateCustom(ctx, gainNode, nodes, params, config.mode); break;
       default: this.generateNoise(ctx, gainNode, nodes, params);
     }
     this.activeSounds.set(soundId, { nodes, gain: gainNode, intervalIds });
@@ -432,6 +436,24 @@ class AudioEngine {
     scheduleLoop();
   }
 
+  // ===================== CUSTOM FILE =====================
+  private generateCustom(ctx: AudioContext, gain: GainNode, nodes: AudioNode[], params: SoundParams, mode: 'loop' | 'oneshot') {
+    if (!params.fileDataUrl) return;
+    
+    fetch(params.fileDataUrl)
+      .then(response => response.arrayBuffer())
+      .then(arrayBuffer => ctx.decodeAudioData(arrayBuffer))
+      .then(audioBuffer => {
+        const src = ctx.createBufferSource();
+        src.buffer = audioBuffer;
+        src.loop = mode === 'loop';
+        src.connect(gain);
+        src.start(0);
+        nodes.push(src);
+      })
+      .catch(err => console.error('Failed to load custom sound:', err));
+  }
+
   // ===================== BASIC GENERATORS =====================
   private generateNoise(ctx: AudioContext, gain: GainNode, nodes: AudioNode[], params: SoundParams) {
     const buffer = this.createNoiseBuffer(params.noiseType || 'white');
@@ -566,6 +588,7 @@ class AudioEngine {
       case 'tone': this.generateOneshotTone(ctx, gainNode, nodes, now, duration, params); break;
       case 'rhythm': this.generateOneshotRhythm(ctx, gainNode, nodes, now, params); break;
       case 'ambient': this.generateOneshotAmbient(ctx, gainNode, nodes, now, duration, params); break;
+      case 'custom': this.generateCustom(ctx, gainNode, nodes, params, 'oneshot'); break;
       default: this.generateOneshotNoise(ctx, gainNode, nodes, now, duration, params);
     }
 
