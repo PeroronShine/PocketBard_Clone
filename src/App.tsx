@@ -196,16 +196,16 @@ function App() {
               </h1>
               <p className="text-xs text-purple-300/70">Атмосферный микшер для D&D</p>
             </div>
+          </div>
+          
+          <div className="flex items-center gap-3">
             <button
               onClick={() => setShowSettings(true)}
-              className="ml-3 w-8 h-8 rounded-lg bg-slate-800/50 flex items-center justify-center text-slate-400 hover:bg-purple-900/50 hover:text-purple-300 transition-all border border-slate-700/30"
+              className="w-8 h-8 rounded-lg bg-slate-800/50 flex items-center justify-center text-slate-400 hover:bg-purple-900/50 hover:text-purple-300 transition-all border border-slate-700/30"
               title="Настройки"
             >
               ⚙️
             </button>
-          </div>
-          
-          <div className="flex items-center gap-4">
             {activeCount > 0 && (
               <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-900/50 rounded-full border border-purple-600/30">
                 <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
