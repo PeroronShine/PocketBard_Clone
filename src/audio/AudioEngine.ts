@@ -10,6 +10,7 @@ export interface SoundConfig {
   category: string;
   type: SoundType;
   mode: SoundMode;
+  subCategory?: 'music' | 'ambient' | 'effect';
   description: string;
   params: SoundParams;
 }

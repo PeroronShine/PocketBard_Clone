@@ -9,18 +9,21 @@ type Tab = 'sounds' | 'mixer' | 'presets';
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('sounds');
-  const [selectedCategory, setSelectedCategory] = useState<string>('tavern');
+  const [activeCategory, setActiveCategory] = useState<string>('tavern');
   // Loop sounds: Map<soundId, volume>
   const [loopSounds, setLoopSounds] = useState<Map<string, number>>(new Map());
-  // One-shot volumes (persisted between plays): Map<soundId, volume>
+  // One-shot volumes: Map<soundId, volume>
   const [oneshotVolumes, setOneshotVolumes] = useState<Map<string, number>>(new Map());
-  // Currently playing one-shots: Set<soundId>
+  // Currently playing one-shots
   const [playingOneshots, setPlayingOneshots] = useState<Set<string>>(new Set());
   const [masterVolume, setMasterVolume] = useState(0.7);
   const [isInitialized, setIsInitialized] = useState(false);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animFrameRef = useRef<number>(0);
+  
+  // Refs for category sections (anchors)
+  const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
 
   const initAudio = useCallback(() => {
     if (!isInitialized) {
@@ -29,9 +32,16 @@ function App() {
     }
   }, [isInitialized]);
 
+  const scrollToCategory = useCallback((catId: string) => {
+    setActiveCategory(catId);
+    const el = sectionRefs.current[catId];
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, []);
+
   const toggleLoopSound = useCallback((soundId: string) => {
     initAudio();
-    
     setLoopSounds(prev => {
       const next = new Map(prev);
       if (next.has(soundId)) {
@@ -53,7 +63,6 @@ function App() {
     initAudio();
     const sound = soundLibrary.find(s => s.id === soundId);
     if (!sound) return;
-
     const vol = oneshotVolumes.get(soundId) || 0.7;
     audioEngine.playOneShot(soundId, sound, vol);
     
@@ -63,7 +72,6 @@ function App() {
       return next;
     });
 
-    // Auto-remove after duration
     const duration = (sound.params.duration || 2) * 1000 + 200;
     setTimeout(() => {
       setPlayingOneshots(prev => {
@@ -95,7 +103,6 @@ function App() {
     initAudio();
     audioEngine.stopAll();
     const newLoop = new Map<string, number>();
-    
     preset.sounds.forEach(({ id, volume }) => {
       const sound = soundLibrary.find(s => s.id === id);
       if (sound && sound.mode === 'loop') {
@@ -103,7 +110,6 @@ function App() {
         newLoop.set(id, volume);
       }
     });
-    
     setLoopSounds(newLoop);
     setPlayingOneshots(new Set());
     setActiveTab('mixer');
@@ -120,72 +126,73 @@ function App() {
     audioEngine.setMasterVolume(vol);
   }, []);
 
-  // Visualizer animation
+  // Track active category based on scroll position
+  useEffect(() => {
+    if (activeTab !== 'sounds') return;
+    
+    const handleScroll = () => {
+      const scrollTop = window.scrollY + 200;
+      let current = categories[0].id;
+      
+      for (const cat of categories) {
+        const el = sectionRefs.current[cat.id];
+        if (el && el.offsetTop <= scrollTop) {
+          current = cat.id;
+        }
+      }
+      setActiveCategory(current);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [activeTab]);
+
+  // Visualizer
   useEffect(() => {
     if (!isInitialized) return;
-
     const canvas = canvasRef.current;
     if (!canvas) return;
-
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-
     if (!analyserRef.current) {
       analyserRef.current = audioEngine.getAnalyserNode();
     }
-
     const analyser = analyserRef.current;
     if (!analyser) return;
-
     const bufferLength = analyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
 
     const draw = () => {
       animFrameRef.current = requestAnimationFrame(draw);
       analyser.getByteFrequencyData(dataArray);
-
       ctx.fillStyle = 'rgba(15, 15, 30, 0.3)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-
       const barWidth = (canvas.width / bufferLength) * 2.5;
       let x = 0;
-
       for (let i = 0; i < bufferLength; i++) {
         const barHeight = (dataArray[i] / 255) * canvas.height * 0.8;
-        
         const hue = (i / bufferLength) * 60 + 260;
         const lightness = 40 + (dataArray[i] / 255) * 30;
         ctx.fillStyle = `hsla(${hue}, 70%, ${lightness}%, 0.8)`;
-        
         ctx.fillRect(x, canvas.height - barHeight, barWidth - 1, barHeight);
         x += barWidth;
       }
     };
-
     draw();
-
-    return () => {
-      cancelAnimationFrame(animFrameRef.current);
-    };
+    return () => cancelAnimationFrame(animFrameRef.current);
   }, [isInitialized]);
 
-  const categorySounds = soundLibrary.filter(s => s.category === selectedCategory);
-  const ambientSounds = categorySounds.filter(s => s.mode === 'loop');
-  const oneshotSounds = categorySounds.filter(s => s.mode === 'oneshot');
-  const activeCount = loopSounds.size + playingOneshots.size;
-
   const getVolumeForSound = (sound: SoundConfig): number => {
-    if (sound.mode === 'loop') {
-      return loopSounds.get(sound.id) || 0;
-    } else {
-      return oneshotVolumes.get(sound.id) || 0.7;
-    }
+    if (sound.mode === 'loop') return loopSounds.get(sound.id) || 0;
+    return oneshotVolumes.get(sound.id) || 0.7;
   };
+
+  const activeCount = loopSounds.size + playingOneshots.size;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 text-white flex flex-col">
       {/* Header */}
-      <header className="border-b border-purple-800/30 bg-black/30 backdrop-blur-sm">
+      <header className="sticky top-0 z-50 border-b border-purple-800/30 bg-black/60 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="text-3xl">🎭</div>
@@ -201,9 +208,9 @@ function App() {
             {activeCount > 0 && (
               <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-900/50 rounded-full border border-purple-600/30">
                 <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
-                <span className="text-sm text-purple-200">
-                  {loopSounds.size} фон{loopSounds.size === 1 ? '' : loopSounds.size < 5 ? 'а' : 'ов'}
-                  {playingOneshots.size > 0 && ` • ${playingOneshots.size} эффект${playingOneshots.size === 1 ? '' : playingOneshots.size < 5 ? 'а' : 'ов'}`}
+                <span className="text-sm text-purple-200 hidden sm:inline">
+                  {loopSounds.size > 0 && `${loopSounds.size} фон`}
+                  {playingOneshots.size > 0 && ` • ${playingOneshots.size} эффект`}
                 </span>
                 <button 
                   onClick={stopAll}
@@ -215,7 +222,6 @@ function App() {
               </div>
             )}
             
-            {/* Master Volume */}
             <div className="flex items-center gap-2">
               <span className="text-sm">🔊</span>
               <input
@@ -225,63 +231,48 @@ function App() {
                 step="0.01"
                 value={masterVolume}
                 onChange={(e) => handleMasterVolume(parseFloat(e.target.value))}
-                className="w-24 h-1.5 bg-purple-900 rounded-lg appearance-none cursor-pointer accent-purple-400"
+                className="w-20 sm:w-24 h-1.5 bg-purple-900 rounded-lg appearance-none cursor-pointer accent-purple-400"
               />
             </div>
           </div>
         </div>
-      </header>
 
-      {/* Visualizer */}
-      {isInitialized && activeCount > 0 && (
-        <div className="h-16 border-b border-purple-800/20 bg-black/20">
-          <canvas
-            ref={canvasRef}
-            width={1200}
-            height={64}
-            className="w-full h-full"
-          />
-        </div>
-      )}
+        {/* Tab Navigation */}
+        <nav className="border-t border-purple-800/20">
+          <div className="max-w-7xl mx-auto px-4 flex gap-1">
+            {[
+              { id: 'sounds' as Tab, label: 'Звуки', icon: '🎵' },
+              { id: 'mixer' as Tab, label: `Микшер${loopSounds.size > 0 ? ` (${loopSounds.size})` : ''}`, icon: '🎛️' },
+              { id: 'presets' as Tab, label: 'Пресеты', icon: '📋' },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-4 py-2.5 text-sm font-medium transition-all border-b-2 ${
+                  activeTab === tab.id
+                    ? 'border-purple-400 text-purple-200 bg-purple-900/20'
+                    : 'border-transparent text-purple-400/60 hover:text-purple-300 hover:bg-purple-900/10'
+                }`}
+              >
+                <span className="mr-1.5">{tab.icon}</span>
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </nav>
 
-      {/* Navigation Tabs */}
-      <nav className="border-b border-purple-800/30 bg-black/20">
-        <div className="max-w-7xl mx-auto px-4 flex gap-1">
-          {[
-            { id: 'sounds' as Tab, label: 'Звуки', icon: '🎵' },
-            { id: 'mixer' as Tab, label: `Микшер${loopSounds.size > 0 ? ` (${loopSounds.size})` : ''}`, icon: '🎛️' },
-            { id: 'presets' as Tab, label: 'Пресеты', icon: '📋' },
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-3 text-sm font-medium transition-all border-b-2 ${
-                activeTab === tab.id
-                  ? 'border-purple-400 text-purple-200 bg-purple-900/20'
-                  : 'border-transparent text-purple-400/60 hover:text-purple-300 hover:bg-purple-900/10'
-              }`}
-            >
-              <span className="mr-1.5">{tab.icon}</span>
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      </nav>
-
-      {/* Main Content */}
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-6">
+        {/* Category Anchors (only on sounds tab) */}
         {activeTab === 'sounds' && (
-          <div>
-            {/* Category Tabs */}
-            <div className="flex flex-wrap gap-2 mb-6">
+          <div className="border-t border-purple-800/10 bg-black/20">
+            <div className="max-w-7xl mx-auto px-4 py-2 flex gap-1.5 overflow-x-auto scrollbar-hide">
               {categories.map(cat => (
                 <button
                   key={cat.id}
-                  onClick={() => setSelectedCategory(cat.id)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
-                    selectedCategory === cat.id
+                  onClick={() => scrollToCategory(cat.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 ${
+                    activeCategory === cat.id
                       ? `bg-gradient-to-r ${cat.color} text-white shadow-lg`
-                      : 'bg-slate-800/50 text-slate-300 hover:bg-slate-700/50 border border-slate-700/50'
+                      : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700/50 hover:text-slate-200 border border-slate-700/30'
                   }`}
                 >
                   <span>{cat.icon}</span>
@@ -289,56 +280,129 @@ function App() {
                 </button>
               ))}
             </div>
+          </div>
+        )}
+      </header>
 
-            {/* Ambient Sounds Section */}
-            <div className="mb-8">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-1 h-5 bg-purple-500 rounded-full"></div>
-                <h2 className="text-sm font-semibold text-purple-200 uppercase tracking-wider">
-                  🎧 Фоновые звуки
-                </h2>
-                <span className="text-xs text-purple-400/50">— зацикленные, для атмосферы</span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {ambientSounds.map(sound => (
-                  <SoundCard
-                    key={sound.id}
-                    sound={sound}
-                    isActive={loopSounds.has(sound.id)}
-                    volume={getVolumeForSound(sound)}
-                    isPlaying={false}
-                    onToggle={toggleLoopSound}
-                    onPlayOneShot={() => {}}
-                    onVolumeChange={setLoopVolume}
-                  />
-                ))}
-              </div>
-            </div>
+      {/* Visualizer */}
+      {isInitialized && activeCount > 0 && (
+        <div className="h-12 border-b border-purple-800/20 bg-black/20 flex-shrink-0">
+          <canvas ref={canvasRef} width={1200} height={48} className="w-full h-full" />
+        </div>
+      )}
 
-            {/* One-shot Sounds Section */}
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-1 h-5 bg-amber-500 rounded-full"></div>
-                <h2 className="text-sm font-semibold text-amber-200 uppercase tracking-wider">
-                  ⚡ Эффекты
-                </h2>
-                <span className="text-xs text-amber-400/50">— одноразовые, для событий</span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {oneshotSounds.map(sound => (
-                  <SoundCard
-                    key={sound.id}
-                    sound={sound}
-                    isActive={false}
-                    volume={getVolumeForSound(sound)}
-                    isPlaying={playingOneshots.has(sound.id)}
-                    onToggle={() => {}}
-                    onPlayOneShot={playOneshot}
-                    onVolumeChange={setOneshotVolume}
-                  />
-                ))}
-              </div>
-            </div>
+      {/* Main Content */}
+      <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-6">
+        {activeTab === 'sounds' && (
+          <div className="space-y-12">
+            {categories.map(cat => {
+              const catSounds = soundLibrary.filter(s => s.category === cat.id);
+              const musicSounds = catSounds.filter(s => s.subCategory === 'music');
+              const ambientSounds = catSounds.filter(s => s.subCategory === 'ambient');
+              const effectSounds = catSounds.filter(s => s.subCategory === 'effect');
+
+              return (
+                <section
+                  key={cat.id}
+                  ref={(el) => { sectionRefs.current[cat.id] = el; }}
+                  className="scroll-mt-40"
+                >
+                  {/* Category Header */}
+                  <div className={`flex items-center gap-3 mb-6 pb-3 border-b border-purple-800/20`}>
+                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${cat.color} flex items-center justify-center text-2xl shadow-lg`}>
+                      {cat.icon}
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-white">{cat.name}</h2>
+                      <p className="text-xs text-purple-400/60">
+                        {musicSounds.length} муз. • {ambientSounds.length} эмб. • {effectSounds.length} эффект.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Music Section */}
+                  {musicSounds.length > 0 && (
+                    <div className="mb-6">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-1 h-4 bg-fuchsia-500 rounded-full"></div>
+                        <h3 className="text-xs font-semibold text-fuchsia-300 uppercase tracking-wider">
+                          🎵 Фоновая музыка
+                        </h3>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                        {musicSounds.map(sound => (
+                          <SoundCard
+                            key={sound.id}
+                            sound={sound}
+                            isActive={loopSounds.has(sound.id)}
+                            volume={getVolumeForSound(sound)}
+                            isPlaying={false}
+                            onToggle={toggleLoopSound}
+                            onPlayOneShot={() => {}}
+                            onVolumeChange={setLoopVolume}
+                            variant="music"
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Ambient Section */}
+                  {ambientSounds.length > 0 && (
+                    <div className="mb-6">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-1 h-4 bg-purple-500 rounded-full"></div>
+                        <h3 className="text-xs font-semibold text-purple-300 uppercase tracking-wider">
+                          🎧 Эмбиент
+                        </h3>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                        {ambientSounds.map(sound => (
+                          <SoundCard
+                            key={sound.id}
+                            sound={sound}
+                            isActive={loopSounds.has(sound.id)}
+                            volume={getVolumeForSound(sound)}
+                            isPlaying={false}
+                            onToggle={toggleLoopSound}
+                            onPlayOneShot={() => {}}
+                            onVolumeChange={setLoopVolume}
+                            variant="ambient"
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Effects Section */}
+                  {effectSounds.length > 0 && (
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-1 h-4 bg-amber-500 rounded-full"></div>
+                        <h3 className="text-xs font-semibold text-amber-300 uppercase tracking-wider">
+                          ⚡ Одноразовые эффекты
+                        </h3>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                        {effectSounds.map(sound => (
+                          <SoundCard
+                            key={sound.id}
+                            sound={sound}
+                            isActive={false}
+                            volume={getVolumeForSound(sound)}
+                            isPlaying={playingOneshots.has(sound.id)}
+                            onToggle={() => {}}
+                            onPlayOneShot={playOneshot}
+                            onVolumeChange={setOneshotVolume}
+                            variant="effect"
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </section>
+              );
+            })}
           </div>
         )}
 
@@ -361,9 +425,9 @@ function App() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-purple-800/20 bg-black/20 py-3 text-center">
+      <footer className="border-t border-purple-800/20 bg-black/20 py-3 text-center flex-shrink-0">
         <p className="text-xs text-purple-400/50">
-          🎭 PocketBard v1.0 — Создавай атмосферу для своих приключений
+          🎭 PocketBard — Создавай атмосферу для своих приключений
         </p>
       </footer>
     </div>
